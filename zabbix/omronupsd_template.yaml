@@ -1,0 +1,558 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: c2693032e47748ffac5acd1ae5bc291f
+      name: Templates/Power
+  templates:
+    - uuid: 65f7e3e12e3e40c1924ed961da40bcc7
+      template: 'omronupsd by Zabbix agent 2'
+      name: 'omronupsd by Zabbix agent 2'
+      groups:
+        - name: Templates/Power
+      items:
+        - uuid: 379e5b5db56f4ce6a0f90240d65ee1eb
+          name: 'omronupsd: Status raw'
+          key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          delay: 30s
+          history: '0'
+          value_type: TEXT
+          timeout: 5s
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - '\{[\s\S]*\}'
+                - \0
+          tags:
+            - tag: component
+              value: raw
+        - uuid: 663165ed1f1442819f512c2901ec4911
+          name: 'omronupsd: State'
+          type: DEPENDENT
+          key: omronupsd.state_code
+          value_type: UNSIGNED
+          valuemap:
+            name: 'omronupsd state'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.state_code
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: power
+          triggers:
+            - uuid: c77a88d75e874ca386fcf470fabe5be8
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.state_code)=1'
+              name: 'omronupsd: Power failure, running on battery'
+              priority: HIGH
+            - uuid: 32a6daedd2354ec693de1cac0a3df157
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.state_code)=2'
+              name: 'omronupsd: Power failure shutdown in progress'
+              priority: DISASTER
+            - uuid: f9cb5065219d43b28ea2732f72d2d9ae
+              expression: 'nodata(/omronupsd by Zabbix agent 2/omronupsd.state_code,{$OMRONUPSD.NODATA})=1'
+              name: 'omronupsd: No status data for {$OMRONUPSD.NODATA}'
+              priority: HIGH
+        - uuid: 49f25d5248f541408016661979bf72ac
+          name: 'omronupsd: Shutdown reason'
+          type: DEPENDENT
+          key: omronupsd.shutdown_reason
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.shutdown_reason
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '-'
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: power
+        - uuid: 6a02da570c24447088f6a0e2f6cebe19
+          name: 'omronupsd: Time on battery'
+          type: DEPENDENT
+          key: omronupsd.on_battery_seconds
+          value_type: UNSIGNED
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.on_battery_seconds
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: power
+        - uuid: cf3cb57a9756443091cfe9e06d6831d5
+          name: 'omronupsd: Time until shutdown'
+          type: DEPENDENT
+          key: omronupsd.seconds_until_shutdown
+          value_type: UNSIGNED
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.seconds_until_shutdown
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: power
+        - uuid: 019f039f460a4e1eb1529b6db047c749
+          name: 'omronupsd: DryRun'
+          type: DEPENDENT
+          key: omronupsd.dry_run
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.dry_run
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: config
+          triggers:
+            - uuid: 205d977aaeb54e4dbd8ef63794be83ed
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.dry_run)=1'
+              name: 'omronupsd: DryRun enabled'
+              priority: WARNING
+        - uuid: 73135cba5c8641dbb722db34514c3d24
+          name: 'omronupsd: UPS off command failures'
+          type: DEPENDENT
+          key: omronupsd.ups_off_command_failures
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups_off_command_failures
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: power
+          triggers:
+            - uuid: f9e57c4e4ec4493db2f736585b1cf4fc
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups_off_command_failures)>0'
+              name: 'omronupsd: UPS off command failed'
+              priority: AVERAGE
+        - uuid: ce6dfd0a99e940a99f54bf6881323d2a
+          name: 'UPS: Communication'
+          type: DEPENDENT
+          key: omronupsd.ups.connected
+          value_type: UNSIGNED
+          valuemap:
+            name: 'omronupsd connected'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.connected
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: db23a6d4cb394a18bcaba16b61f7e37f
+              expression: 'max(/omronupsd by Zabbix agent 2/omronupsd.ups.connected,2m)=0'
+              name: 'UPS: Communication lost'
+              priority: HIGH
+        - uuid: 73e530562b484f0ab3f0d96929427778
+          name: 'UPS: Communication errors'
+          type: DEPENDENT
+          key: omronupsd.ups.comm_errors
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.comm_errors
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 8cfc21e38e6a45729ce0caa5e28e69eb
+          name: 'UPS: Model'
+          type: DEPENDENT
+          key: omronupsd.ups.model
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.model
+              error_handler: DISCARD_VALUE
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          inventory_link: MODEL
+          tags:
+            - tag: component
+              value: ups
+        - uuid: add9d96d77d24d00a1b242438a66d23b
+          name: 'UPS: Serial number'
+          type: DEPENDENT
+          key: omronupsd.ups.serial
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.serial
+              error_handler: DISCARD_VALUE
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: d143e86675a8407f9b790b1a92265465
+          name: 'UPS: Firmware version'
+          type: DEPENDENT
+          key: omronupsd.ups.firmware
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.firmware
+              error_handler: DISCARD_VALUE
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 0bc4898a13ae44a0bd250896f3bc7c17
+          name: 'UPS: Input voltage'
+          type: DEPENDENT
+          key: omronupsd.ups.input_voltage
+          value_type: FLOAT
+          units: V
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.input_voltage
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: fb14f6419a414025ab727957e1506817
+          name: 'UPS: Output voltage'
+          type: DEPENDENT
+          key: omronupsd.ups.output_voltage
+          value_type: FLOAT
+          units: V
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.output_voltage
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 8e111b0efcfc4b9eb041233fb4da111b
+          name: 'UPS: Load'
+          type: DEPENDENT
+          key: omronupsd.ups.load_percent
+          value_type: UNSIGNED
+          units: '%'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.load_percent
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 693d11c019d34e31a3d24f8b5b1dad88
+              expression: 'min(/omronupsd by Zabbix agent 2/omronupsd.ups.load_percent,5m)>{$OMRONUPSD.LOAD.MAX}'
+              name: 'UPS: High load (>{$OMRONUPSD.LOAD.MAX}%)'
+              priority: WARNING
+        - uuid: 4d7cbbb13719445692f5b84345bd41ed
+          name: 'UPS: Frequency'
+          type: DEPENDENT
+          key: omronupsd.ups.frequency
+          value_type: FLOAT
+          units: Hz
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.frequency
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 6c73672974cc4cca9b11d01ca992d18d
+          name: 'UPS: Battery voltage'
+          type: DEPENDENT
+          key: omronupsd.ups.battery_voltage
+          value_type: FLOAT
+          units: V
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.battery_voltage
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 4c8046db5ca448b0bc02e64b18db84c8
+          name: 'UPS: Internal temperature'
+          type: DEPENDENT
+          key: omronupsd.ups.temperature
+          value_type: FLOAT
+          units: °C
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.temperature
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 2765b59113d040ebb3b5512fd9015c2b
+              expression: 'min(/omronupsd by Zabbix agent 2/omronupsd.ups.temperature,5m)>{$OMRONUPSD.TEMP.MAX}'
+              name: 'UPS: High temperature (>{$OMRONUPSD.TEMP.MAX}°C)'
+              priority: WARNING
+        - uuid: b815956c4aa0494ea4b61440c5b389cd
+          name: 'UPS: Utility fail flag'
+          type: DEPENDENT
+          key: omronupsd.ups.utility_fail
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.utility_fail
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 4687fea5830143ee870d1ccb77a723e6
+          name: 'UPS: Battery low flag'
+          type: DEPENDENT
+          key: omronupsd.ups.battery_low
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.battery_low
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 6b6b706bdc884236bb160d482c1e8961
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.battery_low)=1'
+              name: 'UPS: Battery low'
+              priority: HIGH
+        - uuid: 0eaad79453984b8a979a04905d0ec0d7
+          name: 'UPS: Battery fault flag'
+          type: DEPENDENT
+          key: omronupsd.ups.battery_fault
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.battery_fault
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 6823eff03140453aaf347eaeba59936a
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.battery_fault)=1'
+              name: 'UPS: Battery fault'
+              priority: AVERAGE
+        - uuid: 5c50b02bb0b745d5b4f91fa085260cba
+          name: 'UPS: Self test abnormal flag'
+          type: DEPENDENT
+          key: omronupsd.ups.test_abnormal
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.test_abnormal
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: cb5cf78c4bce4f32aaa85a1cc185b10c
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.test_abnormal)=1'
+              name: 'UPS: Self test abnormal'
+              priority: AVERAGE
+        - uuid: a025774d9d724b47aeb1193721c87002
+          name: 'UPS: Battery charge'
+          type: DEPENDENT
+          key: omronupsd.ups.battery_percent
+          value_type: UNSIGNED
+          units: '%'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.battery_percent
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 7e581be0318741aeaa58f84176a6f410
+          name: 'UPS: Estimated runtime'
+          type: DEPENDENT
+          key: omronupsd.ups.runtime
+          value_type: UNSIGNED
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.runtime_minutes
+              error_handler: DISCARD_VALUE
+            - type: MULTIPLIER
+              parameters:
+                - '60'
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 004fa92cfd84498588785f13b858b375
+          name: 'UPS: Active power'
+          type: DEPENDENT
+          key: omronupsd.ups.power_w
+          value_type: UNSIGNED
+          units: W
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.power_w
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: bcd7feb884aa46c8ac2c8ee302c5188b
+          name: 'UPS: Apparent power'
+          type: DEPENDENT
+          key: omronupsd.ups.power_va
+          value_type: UNSIGNED
+          units: VA
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.power_va
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: d96f76ddfc874ae59e8195030164cfa5
+          name: 'omronupsd: Expected clients'
+          type: DEPENDENT
+          key: omronupsd.clients.expected
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.clients.expected
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: clients
+        - uuid: c7e6893f6a6348e584e4b394f90f56bd
+          name: 'omronupsd: Connected clients'
+          type: DEPENDENT
+          key: omronupsd.clients.connected
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.clients.connected
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: clients
+        - uuid: f3cc3d4549834550af22cae6e510ff74
+          name: 'omronupsd: Missing clients'
+          type: DEPENDENT
+          key: omronupsd.clients.missing
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.clients.missing
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: clients
+      macros:
+        - macro: '{$OMRONUPSD.PORT}'
+          value: '8770'
+          description: 'Master.StatusPort'
+        - macro: '{$OMRONUPSD.NODATA}'
+          value: 3m
+        - macro: '{$OMRONUPSD.LOAD.MAX}'
+          value: '80'
+        - macro: '{$OMRONUPSD.TEMP.MAX}'
+          value: '45'
+        - macro: '{$OMRONUPSD.CLIENT.GRACE}'
+          value: 2m
+      valuemaps:
+        - uuid: 065a9ad1813441f29c925ea79508ffbc
+          name: 'omronupsd state'
+          mappings:
+            - value: '0'
+              newvalue: Online
+            - value: '1'
+              newvalue: 'On battery'
+            - value: '2'
+              newvalue: 'Shutting down'
+        - uuid: ae9c02f95f8a401594c64299f73b107c
+          name: 'omronupsd connected'
+          mappings:
+            - value: '0'
+              newvalue: Disconnected
+            - value: '1'
+              newvalue: Connected
+  triggers:
+    - uuid: 550b52d376cb4e0e8fcdfc97cf0369f9
+      expression: 'max(/omronupsd by Zabbix agent 2/omronupsd.clients.connected,{$OMRONUPSD.CLIENT.GRACE})<last(/omronupsd by Zabbix agent 2/omronupsd.clients.expected)'
+      name: 'omronupsd: Clients disconnected'
+      event_name: 'omronupsd: Clients disconnected ({?last(/omronupsd by Zabbix agent 2/omronupsd.clients.missing)})'
+      priority: AVERAGE

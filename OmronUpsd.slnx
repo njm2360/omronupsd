@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OmronUpsd.Tests/OmronUpsd.Tests.csproj" />
+  <Project Path="OmronUpsd/OmronUpsd.csproj" />
+</Solution>
