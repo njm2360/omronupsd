@@ -159,7 +159,7 @@ zabbix_export:
               value: ups
           triggers:
             - uuid: db23a6d4cb394a18bcaba16b61f7e37f
-              expression: 'max(/omronupsd by Zabbix agent 2/omronupsd.ups.connected,2m)=0'
+              expression: 'max(/omronupsd by Zabbix agent 2/omronupsd.ups.connected,2m)=0 and count(/omronupsd by Zabbix agent 2/omronupsd.ups.connected,2m)>=4'
               name: 'UPS: Communication lost'
               priority: HIGH
         - uuid: 73e530562b484f0ab3f0d96929427778
