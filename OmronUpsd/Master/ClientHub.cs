@@ -25,6 +25,9 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     // 切断後も最終受信時刻を保持 (Zabbix 表示用)
     private readonly ConcurrentDictionary<string, long> _lastSeen = new(StringComparer.OrdinalIgnoreCase);
     private readonly ServiceOptions _opt = options.Value;
+    // 接続直後のクライアントへ送信する直近の状態と指示
+    private volatile PowerState _state = PowerState.Online;
+    private volatile ShutdownCommand? _shutdown;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -81,6 +84,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         var pinger = PingLoopAsync(session, ct);
         try
         {
+            await SendCurrentStateAsync(session, ct);
             while (!ct.IsCancellationRequested)
             {
                 using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -125,9 +129,25 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         }
     }
 
+    /// <summary>接続直後のクライアントへ、シャットダウン指示または停電中の状態通知を送信。</summary>
+    private async Task SendCurrentStateAsync(Session session, CancellationToken ct)
+    {
+        if (_shutdown is { } command)
+        {
+            logger.LogWarning("シャットダウン開始後のクライアント接続、シャットダウン指示送信 {Name}", session.Name);
+            await session.Channel.SendAsync(MessageTypes.Shutdown, command, ct);
+        }
+        else if (_state == PowerState.OnBattery)
+        {
+            await session.Channel.SendAsync(MessageTypes.State, new StateNotice(MasterStatus.StateName(_state)), ct);
+        }
+    }
+
     /// <summary>停電・復電の通知。クライアント側はログ出力のみ。</summary>
     public async Task BroadcastStateAsync(PowerState state, CancellationToken ct)
     {
+        _state = state;
+        _shutdown = null;
         var notice = new StateNotice(MasterStatus.StateName(state));
         await Task.WhenAll(_sessions.Values.Select(async s =>
         {
@@ -140,6 +160,9 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     /// <returns>ACK 未受信のクライアント名 (ExpectedClients の未接続分を含む)</returns>
     public async Task<IReadOnlyList<string>> ShutdownAllAsync(ShutdownCommand command, TimeSpan ackTimeout, CancellationToken ct)
     {
+        // セッション一覧の取得より前に設定する。HandleAsync はセッション登録後に参照するため、
+        // 並行して接続したクライアントにもいずれか一方から指示が届く
+        _shutdown = command;
         var targets = _sessions.Values.ToArray();
         await Task.WhenAll(targets.Select(async s =>
         {
