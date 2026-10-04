@@ -1,6 +1,6 @@
 namespace OmronUpsd;
 
-// Zabbix 連携仕様: 真偽値は 0/1、時刻は相対秒、不明値はキーごと省略
+// Zabbix連携仕様: 真偽値は0/1、時刻は相対秒、不明値はキーごと省略
 public sealed record StatusSnapshot(
     string Version,
     int DryRun,
@@ -63,7 +63,7 @@ public sealed record ClientsSnapshot(int Expected, int Connected, string Missing
 
 public sealed record ClientInfo(string Name, int Connected, long? SecondsSinceHeartbeat, int? DryRun, string? Version);
 
-/// <summary>MasterWorker からの更新と StatusServer からの参照を仲介。</summary>
+/// <summary>MasterWorkerからの更新とStatusServerからの参照を仲介。</summary>
 public sealed class MasterStatus
 {
     private readonly object _lock = new();

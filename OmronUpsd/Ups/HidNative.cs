@@ -3,7 +3,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace OmronUpsd;
 
-/// <summary>SetupAPI / hid.dll による HID デバイスの探索とオープン。</summary>
+/// <summary>SetupAPI / hid.dllによるHIDデバイスの探索とオープン。</summary>
 internal static unsafe partial class HidNative
 {
     private const uint DIGCF_PRESENT = 0x02;
@@ -101,7 +101,7 @@ internal static unsafe partial class HidNative
                 var buf = Marshal.AllocHGlobal((int)size);
                 try
                 {
-                    // SP_DEVICE_INTERFACE_DETAIL_DATA_W.cbSize は x64 で 8 (DWORD + WCHAR[1] のパディング込み)
+                    // SP_DEVICE_INTERFACE_DETAIL_DATA_W.cbSizeはx64で8 (DWORD + WCHAR[1] のパディング込み)
                     Marshal.WriteInt32(buf, 8);
                     if (SetupDiGetDeviceInterfaceDetail(set, ref data, buf, size, out _, 0))
                         yield return Marshal.PtrToStringUni(buf + 4)!;
@@ -126,22 +126,22 @@ internal static unsafe partial class HidNative
         return HidD_GetAttributes(h, ref attr) && attr.VendorID == vid && attr.ProductID == pid;
     }
 
-    /// <summary>レポート長は Report ID 1 byte を含む (BW55T: 入力 65 / 出力 17)</summary>
+    /// <summary>レポート長はReport ID 1 byteを含む (BW55T: 入力65 / 出力17)。</summary>
     public static SafeFileHandle Open(string path, out int inputReportLength, out int outputReportLength)
     {
         var h = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
         if (h.IsInvalid)
-            throw new IOException($"HID オープン失敗 (Win32 エラー {Marshal.GetLastPInvokeError()})");
+            throw new IOException($"Failed to open HID (Win32 error {Marshal.GetLastPInvokeError()})");
 
         if (!HidD_GetPreparsedData(h, out var pp))
         {
             h.Dispose();
-            throw new IOException("HidD_GetPreparsedData 失敗");
+            throw new IOException("HidD_GetPreparsedData failed");
         }
         try
         {
             if (HidP_GetCaps(pp, out var caps) != HIDP_STATUS_SUCCESS)
-                throw new IOException("HidP_GetCaps 失敗");
+                throw new IOException("HidP_GetCaps failed");
             inputReportLength = caps.InputReportByteLength;
             outputReportLength = caps.OutputReportByteLength;
         }

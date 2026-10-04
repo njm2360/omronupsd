@@ -5,10 +5,10 @@ using Microsoft.Extensions.Options;
 
 namespace OmronUpsd;
 
-/// <summary>クライアント接続の受付とセッション管理。シャットダウン指示の一斉送信と ACK 集約を担当。</summary>
+/// <summary>クライアント接続の受付とセッション管理。シャットダウン指示の一斉送信とACK集約を担当。</summary>
 public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHub> logger) : BackgroundService
 {
-    // マスター・クライアント双方で使用。IdleTimeout の間受信がなければ切断扱い
+    // マスター・クライアント双方で使用。IdleTimeoutの間受信がなければ切断扱い
     public static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(5);
     public static readonly TimeSpan IdleTimeout = HeartbeatInterval * 3;
 
@@ -22,7 +22,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     }
 
     private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.OrdinalIgnoreCase);
-    // 切断後も最終受信時刻と client_status の内容を保持 (Zabbix 表示用)
+    // 切断後も最終受信時刻とclient_statusの内容を保持 (Zabbix表示用)
     private readonly ConcurrentDictionary<string, long> _lastSeen = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ClientStatusNotice> _clientStatus = new(StringComparer.OrdinalIgnoreCase);
     private readonly ServiceOptions _opt = options.Value;
@@ -34,7 +34,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     {
         var listener = new TcpListener(IPAddress.Parse(_opt.Master.ListenAddress), _opt.Master.ListenPort);
         listener.Start();
-        logger.LogInformation("クライアント待受 {Address}:{Port}", _opt.Master.ListenAddress, _opt.Master.ListenPort);
+        logger.LogInformation("Listening for clients on {Address}:{Port}", _opt.Master.ListenAddress, _opt.Master.ListenPort);
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -52,7 +52,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         }
     }
 
-    /// <summary>1 接続分の処理。認証後、切断またはタイムアウトまで受信ループ。</summary>
+    /// <summary>1接続分の処理。認証後、切断またはタイムアウトまで受信ループ。</summary>
     private async Task HandleAsync(TcpClient tcp, CancellationToken stoppingToken)
     {
         var remote = tcp.Client.RemoteEndPoint;
@@ -67,7 +67,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
         {
-            logger.LogWarning("ハンドシェイク失敗 {Remote}: {Message}", remote, ex.Message);
+            logger.LogWarning("Handshake failed {Remote}: {Message}", remote, ex.Message);
             tcp.Dispose();
             return;
         }
@@ -78,7 +78,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
             await old.Closed.CancelAsync();
         _sessions[name] = session;
         _lastSeen[name] = Environment.TickCount64;
-        logger.LogInformation("クライアント接続 {Name} ({Remote})", name, remote);
+        logger.LogInformation("Client connected {Name} ({Remote})", name, remote);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, session.Closed.Token);
         var ct = linked.Token;
@@ -101,7 +101,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
                         var clientStatus = SecureChannel.Decode<ClientStatusNotice>(data);
                         _clientStatus[name] = clientStatus;
                         if (clientStatus.DryRun)
-                            logger.LogWarning("クライアント DryRun 有効 {Name}", name);
+                            logger.LogWarning("Client DryRun enabled {Name}", name);
                         break;
                 }
             }
@@ -109,7 +109,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
         {
             if (!session.Closed.IsCancellationRequested)
-                logger.LogWarning("クライアント切断 {Name}: {Message}", name, ex is OperationCanceledException ? "タイムアウト" : ex.Message);
+                logger.LogWarning("Client disconnected {Name}: {Message}", name, ex is OperationCanceledException ? "timeout" : ex.Message);
         }
         catch (Exception)
         {
@@ -144,7 +144,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     {
         if (_shutdown is { } command)
         {
-            logger.LogWarning("シャットダウン開始後のクライアント接続、シャットダウン指示送信 {Name}", session.Name);
+            logger.LogWarning("Client connected after shutdown started, sending shutdown command {Name}", session.Name);
             await session.Channel.SendAsync(MessageTypes.Shutdown, command, ct);
         }
         else if (_state == PowerState.OnBattery)
@@ -162,22 +162,22 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
         await Task.WhenAll(_sessions.Values.Select(async s =>
         {
             try { await s.Channel.SendAsync(MessageTypes.State, notice, ct); }
-            catch (Exception ex) { logger.LogWarning("状態通知失敗 {Name}: {Message}", s.Name, ex.Message); }
+            catch (Exception ex) { logger.LogWarning("Failed to send state notice {Name}: {Message}", s.Name, ex.Message); }
         }));
     }
 
-    /// <summary>接続中の全クライアントへ指示を送信し、全台の ACK 受信または ackTimeout 経過まで待機。</summary>
-    /// <returns>ACK 未受信のクライアント名 (ExpectedClients の未接続分を含む)</returns>
+    /// <summary>接続中の全クライアントへ指示を送信し、全台のACK受信またはackTimeout経過まで待機。</summary>
+    /// <returns>ACK未受信のクライアント名 (ExpectedClientsの未接続分を含む)</returns>
     public async Task<IReadOnlyList<string>> ShutdownAllAsync(ShutdownCommand command, TimeSpan ackTimeout, CancellationToken ct)
     {
-        // セッション一覧の取得より前に設定する。HandleAsync はセッション登録後に参照するため、
+        // セッション一覧の取得より前に設定する。HandleAsyncはセッション登録後に参照するため、
         // 並行して接続したクライアントにもいずれか一方から指示が届く
         _shutdown = command;
         var targets = _sessions.Values.ToArray();
         await Task.WhenAll(targets.Select(async s =>
         {
             try { await s.Channel.SendAsync(MessageTypes.Shutdown, command, ct); }
-            catch (Exception ex) { logger.LogWarning("シャットダウン指示送信失敗 {Name}: {Message}", s.Name, ex.Message); }
+            catch (Exception ex) { logger.LogWarning("Failed to send shutdown command {Name}: {Message}", s.Name, ex.Message); }
         }));
 
         var all = Task.WhenAll(targets.Select(s => s.ShutdownAck.Task));
@@ -188,7 +188,7 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
             .ToList();
     }
 
-    /// <summary>Zabbix 向けクライアント状態。ExpectedClients と接続実績のあるクライアントの和集合。</summary>
+    /// <summary>Zabbix向けクライアント状態。ExpectedClientsと接続実績のあるクライアントの和集合。</summary>
     public ClientsSnapshot Snapshot()
     {
         var now = Environment.TickCount64;

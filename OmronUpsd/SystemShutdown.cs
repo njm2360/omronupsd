@@ -22,7 +22,7 @@ internal static unsafe partial class SystemShutdown
     private const uint TOKEN_QUERY = 0x8;
     private const uint SE_PRIVILEGE_ENABLED = 0x2;
 
-    // LUID は DWORD×2 の 4 byte 境界。Pack 未指定だと long が 8 byte 境界に揃いずれる
+    // LUIDはDWORD×2の4 byte境界。Pack未指定だとlongが8 byte境界に配置され、フィールド位置がずれる
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     private struct TOKEN_PRIVILEGES
     {
@@ -61,16 +61,16 @@ internal static unsafe partial class SystemShutdown
             try
             {
                 Initiate(message);
-                logger.LogCritical("OS シャットダウン要求");
+                logger.LogCritical("Requesting OS shutdown");
             }
             catch (Exception ex)
             {
-                logger.LogCritical(ex, "InitiateShutdown 失敗、shutdown.exe で再試行");
+                logger.LogCritical(ex, "InitiateShutdown failed, retrying with shutdown.exe");
                 Process.Start(new ProcessStartInfo("shutdown.exe", "/s /f /t 0") { UseShellExecute = false })?.Dispose();
             }
         }
 
-        // LocalSystem でも SeShutdownPrivilege は既定で無効のため有効化が必要
+        // LocalSystemでもSeShutdownPrivilegeは既定で無効のため有効化が必要
         private static void Initiate(string message)
         {
             if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out var token))

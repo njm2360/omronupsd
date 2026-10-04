@@ -55,7 +55,7 @@ try
 }
 catch (OptionsValidationException ex)
 {
-    Console.Error.WriteLine("設定エラー: " + string.Join(" / ", ex.Failures));
+    Console.Error.WriteLine("Configuration error: " + string.Join(" / ", ex.Failures));
     return 1;
 }
 
@@ -72,7 +72,7 @@ static async Task<int> PrintStatusAsync()
     }
     catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
     {
-        Console.Error.WriteLine($"ステータス取得失敗: {ex.Message}");
+        Console.Error.WriteLine($"Failed to get status: {ex.Message}");
         return 1;
     }
 }

@@ -70,7 +70,7 @@ begin
   Result := ExecHidden(ExpandConstant('{sys}\sc.exe'), 'query {#ServiceName}') <> ErrorServiceDoesNotExist;
 end;
 
-// sc.exe stop は停止完了を待たないため、完了まで待機する Stop-Service を使用
+// sc.exe stopは停止完了を待たないため、完了まで待機するStop-Serviceを使用
 procedure StopService;
 begin
   ExecHidden(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
@@ -80,12 +80,12 @@ end;
 procedure InitializeWizard;
 begin
   RolePage := CreateInputOptionPage(wpSelectDir, '動作モード', '動作モードを選択してください。', '', True, False);
-  RolePage.Add('マスター (UPS 接続機)');
+  RolePage.Add('マスター (UPS接続機)');
   RolePage.Add('クライアント');
   RolePage.SelectedValueIndex := RoleMaster;
 
   KeyPage := CreateInputQueryPage(RolePage.ID, '認証設定', '共有鍵を入力してください。',
-    '全台で同一の値を指定します。16 文字以上。');
+    '全台で同一の値を指定します。16文字以上。');
   KeyPage.Add('共有鍵:', False);
 
   MasterPage := CreateInputQueryPage(KeyPage.ID, 'クライアント設定', '監視対象のクライアント名を入力してください。',
@@ -93,7 +93,7 @@ begin
   MasterPage.Add('クライアント名:', False);
 
   ClientPage := CreateInputQueryPage(KeyPage.ID, 'マスター設定', '接続先マスターを入力してください。', '');
-  ClientPage.Add('ホスト名または IP アドレス:', False);
+  ClientPage.Add('ホスト名またはIPアドレス:', False);
   ClientPage.Add('クライアント名 (省略時はコンピューター名):', False);
 end;
 
@@ -118,13 +118,13 @@ begin
     Key := Trim(KeyPage.Values[0]);
     if (Length(Key) < 16) or (Pos('CHANGE-ME', Key) = 1) then
     begin
-      MsgBox('共有鍵は 16 文字以上で指定してください。', mbError, MB_OK);
+      MsgBox('共有鍵は16文字以上で指定してください。', mbError, MB_OK);
       Result := False;
     end;
   end
   else if (CurPageID = ClientPage.ID) and (Trim(ClientPage.Values[0]) = '') then
   begin
-    MsgBox('ホスト名または IP アドレスを指定してください。', mbError, MB_OK);
+    MsgBox('ホスト名またはIPアドレスを指定してください。', mbError, MB_OK);
     Result := False;
   end;
 end;
@@ -167,7 +167,7 @@ begin
   Result := '[' + Result + ']';
 end;
 
-// キー名で対象行を特定して値を置換。appsettings.json が 1 行 1 キーの形式で、対象のキー名がファイル内で一意であることが前提
+// キー名で対象行を特定して値を置換。appsettings.jsonが1行1キーの形式で、対象のキー名がファイル内で一意であることが前提
 procedure ReplaceValue(var Lines: TArrayOfString; const Key, Value: String);
 var
   I, P: Integer;
@@ -187,7 +187,7 @@ begin
       Exit;
     end;
   end;
-  RaiseException('appsettings.json に ' + Key + ' がありません');
+  RaiseException('appsettings.jsonに' + Key + 'がありません');
 end;
 
 procedure WriteConfig;
@@ -195,7 +195,7 @@ var
   Lines: TArrayOfString;
 begin
   if not LoadStringsFromFile(ConfigPath, Lines) then
-    RaiseException('appsettings.json を読み込めません');
+    RaiseException('appsettings.jsonを読み込めません');
   ReplaceValue(Lines, 'SharedKey', JsonString(Trim(KeyPage.Values[0])));
   if IsMaster then
   begin
@@ -209,10 +209,10 @@ begin
     ReplaceValue(Lines, 'Name', JsonString(Trim(ClientPage.Values[1])));
   end;
   if not SaveStringsToUTF8FileWithoutBOM(ConfigPath, Lines, False) then
-    RaiseException('appsettings.json を書き込めません');
+    RaiseException('appsettings.jsonを書き込めません');
 end;
 
-// 共有鍵を含むため SYSTEM と Administrators 以外の読み取りを禁止
+// 共有鍵を含むためSYSTEMとAdministrators以外の読み取りを禁止
 procedure RestrictConfigAccess;
 begin
   ExecHidden(ExpandConstant('{sys}\icacls.exe'),
@@ -251,7 +251,7 @@ begin
     if ExecHidden(ExpandConstant('{app}\{#AppExe}'), 'install') <> 0 then
       MsgBox('サービスの登録に失敗しました。', mbError, MB_OK);
   if ExecHidden(ExpandConstant('{sys}\sc.exe'), 'start {#ServiceName}') <> 0 then
-    MsgBox('サービスの開始に失敗しました。%ProgramData%\omronupsd\logs のログを確認してください。', mbError, MB_OK);
+    MsgBox('サービスの開始に失敗しました。%ProgramData%\omronupsd\logsのログを確認してください。', mbError, MB_OK);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

@@ -3,19 +3,19 @@ using System.Security.Principal;
 
 namespace OmronUpsd;
 
-/// <summary>sc.exe による Windows サービス登録・削除。</summary>
+/// <summary>sc.exeによるWindowsサービス登録・削除。</summary>
 public static class ServiceInstaller
 {
     public static int Install()
     {
-        if (!IsAdministrator()) return Fail("管理者権限が必要");
+        if (!IsAdministrator()) return Fail("Administrator privileges required");
         var exe = Environment.ProcessPath!;
 
         if (Sc("create", AppInfo.ServiceName, "binPath=", $"\"{exe}\"", "start=", "auto", "DisplayName=", "OMRON UPS Daemon") != 0)
-            return Fail("サービス作成失敗");
-        Sc("description", AppInfo.ServiceName, "OMRON BW55T 停電監視・連動シャットダウン");
+            return Fail("Failed to create service");
+        Sc("description", AppInfo.ServiceName, "Power failure monitoring and coordinated shutdown service for OMRON BW55T");
         Sc("failure", AppInfo.ServiceName, "reset=", "86400", "actions=", "restart/5000/restart/5000/restart/30000");
-        // 非 0 終了コードでの停止も障害扱いとし、再起動対象にする
+        // 非0終了コードでの停止も障害扱いとし、再起動対象にする
         Sc("failureflag", AppInfo.ServiceName, "1");
 
         if (!EventLog.SourceExists(AppInfo.ServiceName))
@@ -30,9 +30,9 @@ public static class ServiceInstaller
 
     public static int Uninstall()
     {
-        if (!IsAdministrator()) return Fail("管理者権限が必要");
+        if (!IsAdministrator()) return Fail("Administrator privileges required");
         Sc("stop", AppInfo.ServiceName);
-        return Sc("delete", AppInfo.ServiceName) == 0 ? 0 : Fail("サービス削除失敗");
+        return Sc("delete", AppInfo.ServiceName) == 0 ? 0 : Fail("Failed to delete service");
     }
 
     private static int Sc(params string[] args)

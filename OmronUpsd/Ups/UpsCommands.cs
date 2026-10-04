@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace OmronUpsd;
 
-/// <summary>BW55T のコマンド文字列と応答解析。</summary>
+/// <summary>BW55Tのコマンド文字列と応答解析。</summary>
 public static partial class UpsCommands
 {
     public const string Status = "Q1";
@@ -22,7 +22,7 @@ public static partial class UpsCommands
     public const string RestartBatteryLevel = "Rbv ?";
     public const string BatteryLowLevel = "Bld ?";
 
-    // S は 0～30 分を受け付けるが、0 は "S.2" (1 分未満) となりマスターの OS 停止が間に合わない
+    // Sは0～30分を受け付けるが、0は "S.2" (1分未満) となりマスターのOS停止が間に合わない
     public const int MinOffDelayMinutes = 1;
     public const int MaxOffDelayMinutes = 30;
 
@@ -36,7 +36,7 @@ public static partial class UpsCommands
     public static int? ParseInt(string? response) =>
         int.TryParse(response, NumberStyles.None, CultureInfo.InvariantCulture, out var v) ? v : null;
 
-    /// <returns>V / V2 / V3 応答の先頭 length 文字 (各桁 0/1、V3 は区切りの空白を含む)。形式不正時は null</returns>
+    /// <returns>V / V2 / V3応答の先頭length文字 (各桁0/1、V3は区切りの空白を含む)。形式不正時はnull</returns>
     public static string? ParseFlags(string? response, int length = 8) =>
         response?.Length >= length && response.AsSpan(0, length).IndexOfAnyExcept('0', '1', ' ') < 0 ? response[..length] : null;
 

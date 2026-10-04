@@ -27,8 +27,8 @@ public sealed record StateNotice(string State);
 public sealed record ClientStatusNotice(bool DryRun, string Version);
 
 /// <summary>
-/// 改行区切り JSON。接続ごとに双方の nonce からセッション鍵を導出し、方向・連番込みの HMAC を付与。
-/// 時刻非依存で、別セッション・同一セッション内の再送は鍵/seq 不一致で拒否。
+/// 改行区切りJSON。接続ごとに双方のnonceからセッション鍵を導出し、方向・連番込みのHMACを付与。
+/// 時刻非依存で、別セッション・同一セッション内の再送は鍵/seq不一致で拒否。
 /// </summary>
 public sealed class SecureChannel : IAsyncDisposable
 {
@@ -63,7 +63,7 @@ public sealed class SecureChannel : IAsyncDisposable
 
     private sealed record Envelope(long Seq, string Type, string Data, string Mac);
 
-    /// <summary>マスター側ハンドシェイク。server nonce 送信 → client hello 検証 → welcome 返信。</summary>
+    /// <summary>マスター側ハンドシェイク。server nonce送信 → client hello検証 → welcome返信。</summary>
     public static async Task<(SecureChannel Channel, string ClientName)> AcceptAsync(Stream stream, string sharedKey, CancellationToken ct)
     {
         var key = Encoding.UTF8.GetBytes(sharedKey);
@@ -73,23 +73,23 @@ public sealed class SecureChannel : IAsyncDisposable
 
         var hello = await ReadJsonAsync<Hello>(reader, ct);
         if (hello.Nonce is null || hello.Name is null || hello.Mac is null)
-            throw new ProtocolException("hello メッセージ不正");
+            throw new ProtocolException("Invalid hello message");
         if (!Verify(key, $"c-hello|{serverNonce}|{hello.Nonce}|{hello.Name}", hello.Mac))
-            throw new ProtocolException($"認証失敗 ({hello.Name})");
+            throw new ProtocolException($"Authentication failed ({hello.Name})");
 
         await WriteLineAsync(stream, new Hello(null, null, Sign(key, $"s-welcome|{serverNonce}|{hello.Nonce}|{hello.Name}")), ct);
         var session = DeriveSessionKey(key, serverNonce, hello.Nonce);
         return (new SecureChannel(stream, reader, session, isServer: true), hello.Name);
     }
 
-    /// <summary>クライアント側ハンドシェイク。server nonce 受信 → client hello 送信 → welcome 検証。</summary>
+    /// <summary>クライアント側ハンドシェイク。server nonce受信 → client hello送信 → welcome検証。</summary>
     public static async Task<SecureChannel> ConnectAsync(Stream stream, string sharedKey, string name, CancellationToken ct)
     {
         var key = Encoding.UTF8.GetBytes(sharedKey);
         var reader = new LineReader(stream, MaxLineBytes);
         var serverHello = await ReadJsonAsync<Hello>(reader, ct);
         if (serverHello.Nonce is null)
-            throw new ProtocolException("server hello メッセージ不正");
+            throw new ProtocolException("Invalid server hello message");
 
         var clientNonce = NewNonce();
         await WriteLineAsync(stream, new Hello(clientNonce, name, Sign(key, $"c-hello|{serverHello.Nonce}|{clientNonce}|{name}")), ct);
@@ -97,7 +97,7 @@ public sealed class SecureChannel : IAsyncDisposable
         // マスター側の鍵保持も検証 (偽マスターからのシャットダウン指示防止)
         var welcome = await ReadJsonAsync<Hello>(reader, ct);
         if (welcome.Mac is null || !Verify(key, $"s-welcome|{serverHello.Nonce}|{clientNonce}|{name}", welcome.Mac))
-            throw new ProtocolException("マスター認証失敗");
+            throw new ProtocolException("Master authentication failed");
 
         var session = DeriveSessionKey(key, serverHello.Nonce, clientNonce);
         return new SecureChannel(stream, reader, session, isServer: false);
@@ -121,22 +121,22 @@ public sealed class SecureChannel : IAsyncDisposable
 
     public Task SendAsync(string type, CancellationToken ct) => SendAsync(type, new { }, ct);
 
-    /// <exception cref="ProtocolException">MAC 不一致・seq 不正。呼び出し側は接続を破棄する</exception>
+    /// <exception cref="ProtocolException">MAC不一致・seq不正。呼び出し側は接続を破棄する</exception>
     public async Task<(string Type, string Data)> ReceiveAsync(CancellationToken ct)
     {
         var env = await ReadJsonAsync<Envelope>(_reader, ct);
         if (env.Type is null || env.Data is null || env.Mac is null)
-            throw new ProtocolException("メッセージ形式不正");
+            throw new ProtocolException("Invalid message format");
         if (env.Seq != _recvSeq + 1)
-            throw new ProtocolException($"seq 不正 (期待 {_recvSeq + 1}, 受信 {env.Seq})");
+            throw new ProtocolException($"Invalid seq (expected {_recvSeq + 1}, received {env.Seq})");
         if (!Verify(_sessionKey, $"{_recvDir}|{env.Seq}|{env.Type}|{env.Data}", env.Mac))
-            throw new ProtocolException("MAC 不一致");
+            throw new ProtocolException("MAC mismatch");
         _recvSeq = env.Seq;
         return (env.Type, env.Data);
     }
 
     public static T Decode<T>(string data) =>
-        JsonSerializer.Deserialize<T>(data, Json) ?? throw new ProtocolException("ペイロードなし");
+        JsonSerializer.Deserialize<T>(data, Json) ?? throw new ProtocolException("Missing payload");
 
     public async ValueTask DisposeAsync()
     {
@@ -172,14 +172,14 @@ public sealed class SecureChannel : IAsyncDisposable
 
     private static async Task<T> ReadJsonAsync<T>(LineReader reader, CancellationToken ct)
     {
-        var line = await reader.ReadLineAsync(ct) ?? throw new EndOfStreamException("接続切断");
+        var line = await reader.ReadLineAsync(ct) ?? throw new EndOfStreamException("Connection closed");
         try
         {
-            return JsonSerializer.Deserialize<T>(line, Json) ?? throw new ProtocolException("JSON なし");
+            return JsonSerializer.Deserialize<T>(line, Json) ?? throw new ProtocolException("Empty JSON");
         }
         catch (JsonException ex)
         {
-            throw new ProtocolException("JSON 解析失敗: " + ex.Message);
+            throw new ProtocolException("Failed to parse JSON: " + ex.Message);
         }
     }
 }
@@ -206,7 +206,7 @@ internal sealed class LineReader(Stream stream, int maxBytes)
             var nl = Array.IndexOf(_buf, (byte)'\n', _start, _end - _start);
             var take = (nl < 0 ? _end : nl) - _start;
             if (line.Length + take > maxBytes)
-                throw new ProtocolException("行長超過");
+                throw new ProtocolException("Line too long");
             line.Write(_buf, _start, take);
             if (nl >= 0)
             {

@@ -5,7 +5,7 @@ namespace OmronUpsd;
 
 public enum Role { Master, Client }
 
-/// <summary>appsettings.json の "OmronUpsd" セクション。</summary>
+/// <summary>appsettings.jsonの "OmronUpsd" セクション。</summary>
 public sealed class ServiceOptions
 {
     public const string Section = "OmronUpsd";
@@ -13,7 +13,7 @@ public sealed class ServiceOptions
     public Role Role { get; set; } = Role.Master;
     // マスター・クライアント間の認証鍵。全台共通
     public string SharedKey { get; set; } = "";
-    // マスターの値はクライアントにも伝搬。いずれかが true なら OS 停止を抑止
+    // マスターの値はクライアントにも伝搬。いずれかがtrueならOS停止を抑止
     public bool DryRun { get; set; }
     public MasterOptions Master { get; set; } = new();
     public ClientOptions Client { get; set; } = new();
@@ -24,17 +24,17 @@ public sealed class MasterOptions
     // クライアント接続の待受
     public string ListenAddress { get; set; } = "0.0.0.0";
     public int ListenPort { get; set; } = 8771;
-    // ステータス API (127.0.0.1 固定)
+    // ステータスAPI (127.0.0.1固定)
     public int StatusPort { get; set; } = 8770;
-    // 停電検知からシャットダウン開始まで
+    // 停電判定からシャットダウン開始まで
     public int ShutdownAfterSeconds { get; set; } = 60;
-    // S コマンド送信から UPS 出力停止まで。全台の OS 停止完了に足る値とする
+    // Sコマンド送信からUPS出力停止まで。全台のOS停止完了に足る値とする
     public int UpsOffDelayMinutes { get; set; } = 3;
     // 停電中、RTS (推定バックアップ時間) がこれを下回れば即シャットダウン
     public int MinRuntimeMinutes { get; set; } = 6;
     public int ClientAckTimeoutSeconds { get; set; } = 15;
     public int PollIntervalSeconds { get; set; } = 2;
-    // 未接続監視の対象。ClientOptions.Name と一致させる
+    // 未接続監視の対象。ClientOptions.Nameと一致させる
     public string[] ExpectedClients { get; set; } = [];
 }
 
@@ -53,33 +53,33 @@ public sealed class ServiceOptionsValidator : IValidateOptions<ServiceOptions>
     {
         var errors = new List<string>();
         if (o.SharedKey.Length < 16 || o.SharedKey.StartsWith("CHANGE-ME", StringComparison.Ordinal))
-            errors.Add("SharedKey 未設定または 16 文字未満");
+            errors.Add("SharedKey: not set or shorter than 16 characters");
 
         if (o.Role == Role.Master)
         {
             var m = o.Master;
             if (m.ShutdownAfterSeconds is < 0 or > 36000)
-                errors.Add("Master.ShutdownAfterSeconds: 0～36000");
+                errors.Add("Master.ShutdownAfterSeconds: must be 0-36000");
             if (m.UpsOffDelayMinutes is < UpsCommands.MinOffDelayMinutes or > UpsCommands.MaxOffDelayMinutes)
-                errors.Add($"Master.UpsOffDelayMinutes: {UpsCommands.MinOffDelayMinutes}～{UpsCommands.MaxOffDelayMinutes}");
-            // RTS 閾値到達後に S を送っても、出力停止前に電池切れとならないための制約
+                errors.Add($"Master.UpsOffDelayMinutes: must be {UpsCommands.MinOffDelayMinutes}-{UpsCommands.MaxOffDelayMinutes}");
+            // RTSしきい値到達後にSを送っても、出力停止前に電池切れとならないための制約
             if (m.MinRuntimeMinutes <= m.UpsOffDelayMinutes)
-                errors.Add("Master.MinRuntimeMinutes: UpsOffDelayMinutes より大きい値が必要");
+                errors.Add("Master.MinRuntimeMinutes: must be greater than UpsOffDelayMinutes");
             if (m.ClientAckTimeoutSeconds is < 1 or > 120)
-                errors.Add("Master.ClientAckTimeoutSeconds: 1～120");
+                errors.Add("Master.ClientAckTimeoutSeconds: must be 1-120");
             if (m.PollIntervalSeconds is < 1 or > 10)
-                errors.Add("Master.PollIntervalSeconds: 1～10");
+                errors.Add("Master.PollIntervalSeconds: must be 1-10");
             if (!IPAddress.TryParse(m.ListenAddress, out _))
-                errors.Add("Master.ListenAddress: IP アドレス形式で指定");
+                errors.Add("Master.ListenAddress: must be an IP address");
             ValidatePort(errors, "Master.ListenPort", m.ListenPort);
             ValidatePort(errors, "Master.StatusPort", m.StatusPort);
             if (m.ListenPort == m.StatusPort)
-                errors.Add("Master.ListenPort と StatusPort が重複");
+                errors.Add("Master.ListenPort: must differ from StatusPort");
         }
         else
         {
             if (string.IsNullOrWhiteSpace(o.Client.MasterHost))
-                errors.Add("Client.MasterHost 未設定");
+                errors.Add("Client.MasterHost: not set");
             ValidatePort(errors, "Client.MasterPort", o.Client.MasterPort);
         }
 
@@ -89,6 +89,6 @@ public sealed class ServiceOptionsValidator : IValidateOptions<ServiceOptions>
     private static void ValidatePort(List<string> errors, string name, int port)
     {
         if (port is < 1 or > IPEndPoint.MaxPort)
-            errors.Add($"{name}: 1～{IPEndPoint.MaxPort}");
+            errors.Add($"{name}: must be 1-{IPEndPoint.MaxPort}");
     }
 }

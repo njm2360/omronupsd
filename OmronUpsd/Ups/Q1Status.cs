@@ -3,8 +3,8 @@ using System.Globalization;
 namespace OmronUpsd;
 
 /// <summary>
-/// Q1 応答 "(098.9 000.0 098.9 048 60.0 13.5 36.1 00101000"。
-/// b5/b3/b1 は用途不明 (実機では b5, b3 が常時 1)。
+/// Q1応答 "(098.9 000.0 098.9 048 60.0 13.5 36.1 00101000"。
+/// b5/b3/b1は用途不明 (実機ではb5, b3が常時1)。
 /// </summary>
 public sealed record Q1Status(
     double InputVoltage,

@@ -1,6 +1,6 @@
 namespace OmronUpsd;
 
-/// <summary>Q1 に含まれない UPS の警報。未取得の項目は null。</summary>
+/// <summary>Q1に含まれないUPSの警報。未取得の項目はnull。</summary>
 public sealed record UpsAlarms(
     bool? BatteryDisconnected,
     bool? UpsFault,
@@ -23,18 +23,18 @@ public sealed record UpsAlarms(
 
     public IReadOnlyList<(string Name, bool? Active)> Items() =>
     [
-        ("バッテリ未接続", BatteryDisconnected),
-        ("UPS 故障", UpsFault),
-        ("バッテリ交換時期", BatteryReplace),
-        ("過負荷", Overload),
-        ("出力過電圧", OutputOverVoltage),
-        ("DC バス電圧異常", DcBusAbnormal),
-        ("過負荷継続", OverloadTimeout),
-        ("出力短絡", OutputShort),
-        ("バッテリ過充電", BatteryOverCharge),
-        ("バッテリ充電不足", BatteryUnderCharge),
-        ("過温度", OverTemperature),
-        ("出力電圧低下", OutputUnderVoltage),
+        ("Battery disconnected", BatteryDisconnected),
+        ("UPS fault", UpsFault),
+        ("Battery replacement due", BatteryReplace),
+        ("Overload", Overload),
+        ("Output overvoltage", OutputOverVoltage),
+        ("DC bus voltage abnormal", DcBusAbnormal),
+        ("Overload timeout", OverloadTimeout),
+        ("Output short circuit", OutputShort),
+        ("Battery overcharge", BatteryOverCharge),
+        ("Battery undercharge", BatteryUnderCharge),
+        ("Over temperature", OverTemperature),
+        ("Output undervoltage", OutputUnderVoltage),
     ];
 
     private static bool? Bit(string? flags, int index) => flags is null ? null : flags[index] == '1';

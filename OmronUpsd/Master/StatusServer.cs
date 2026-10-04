@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 namespace OmronUpsd;
 
 /// <summary>
-/// Zabbix (web.page.get) 向けステータス API。GET /status で StatusSnapshot を JSON で返却。
-/// 127.0.0.1 限定。http.sys (HttpListener) は URL ACL 登録が必要なため不使用。
+/// Zabbix (web.page.get) 向けステータスAPI。GET /statusでStatusSnapshotをJSONで返却。
+/// 127.0.0.1限定。http.sys (HttpListener) はURL ACL登録が必要なため不使用。
 /// </summary>
 public sealed class StatusServer(
     MasterStatus status,
@@ -23,7 +23,7 @@ public sealed class StatusServer(
         var port = options.Value.Master.StatusPort;
         var listener = new TcpListener(IPAddress.Loopback, port);
         listener.Start();
-        logger.LogInformation("ステータス API 待受 http://127.0.0.1:{Port}/status", port);
+        logger.LogInformation("Status API listening on http://127.0.0.1:{Port}/status", port);
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -52,7 +52,7 @@ public sealed class StatusServer(
             var reader = new LineReader(stream, 8 * 1024);
             var requestLine = await reader.ReadLineAsync(cts.Token);
             var path = requestLine?.Split(' ') is [_, var p, ..] ? p : "";
-            // 未読ヘッダを残してクローズすると RST となり、応答が欠落する場合あり
+            // 未読ヘッダを残してクローズするとRSTとなり、応答が欠落する場合あり
             while (await reader.ReadLineAsync(cts.Token) is { } h && h.TrimEnd('\r').Length > 0) { }
 
             var (code, body) = path is "/status" or "/"

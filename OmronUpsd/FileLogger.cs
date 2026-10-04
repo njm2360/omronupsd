@@ -4,7 +4,7 @@ using System.Text;
 
 namespace OmronUpsd;
 
-/// <summary>%ProgramData%\omronupsd\logs への日付別ログ出力。書き込みは専用スレッドで実施。</summary>
+/// <summary>%ProgramData%\omronupsd\logsへの日付別ログ出力。書き込みは専用スレッドで実施。</summary>
 public sealed class FileLoggerProvider : ILoggerProvider
 {
     private const int RetainDays = 30;

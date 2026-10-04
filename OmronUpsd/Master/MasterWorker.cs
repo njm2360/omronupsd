@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace OmronUpsd;
 
-/// <summary>マスター処理本体。UPS ポーリング、停電判定、シャットダウンシーケンスを担当。</summary>
+/// <summary>マスター処理本体。UPSポーリング、停電判定、シャットダウンシーケンスを担当。</summary>
 public sealed class MasterWorker(
     IUpsDevice ups,
     ClientHub hub,
@@ -17,18 +17,18 @@ public sealed class MasterWorker(
     private static readonly TimeSpan InfoInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RuntimeIntervalOnBattery = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AlarmsInterval = TimeSpan.FromSeconds(5);
-    // 停電判定に用いる RTS の有効期間。超過分は不明扱い
+    // 停電判定に用いるRTSの有効期間。超過分は不明扱い
     private static readonly TimeSpan RuntimeMaxAge = TimeSpan.FromSeconds(30);
 
-    // シャットダウンシーケンス中のサービス異常終了・再起動時に OS 停止を再開するためのマーカー。内容は書込時刻 (ISO 8601)
+    // シャットダウンシーケンス中のサービス異常終了・再起動時にOS停止を再開するためのマーカー。内容は書込時刻 (ISO 8601)
     internal static readonly string MarkerPath = Path.Combine(AppInfo.DataDirectory, "shutdown.marker");
-    // マーカー書込から S 送信完了までの最大所要時間 (SendUpsOffAsync のリトライを含む)
+    // マーカー書込からS送信完了までの最大所要時間 (SendUpsOffAsyncのリトライを含む)
     private static readonly TimeSpan UpsOffSendMargin = TimeSpan.FromSeconds(15);
 
     private readonly ServiceOptions _opt = options.Value;
     private readonly PowerMonitor _monitor = new(options.Value.Master.ShutdownAfterSeconds, options.Value.Master.MinRuntimeMinutes);
 
-    // 最終取得値。時刻はすべて Environment.TickCount64
+    // 最終取得値。時刻はすべてEnvironment.TickCount64
     private Q1Status? _q1;
     private long? _lastCommAt;
     private long _commErrors;
@@ -48,7 +48,7 @@ public sealed class MasterWorker(
         try
         {
             if (_opt.DryRun)
-                logger.LogWarning("DryRun モード (UPS 停止・OS シャットダウン抑止)");
+                logger.LogWarning("DryRun mode (UPS power-off and OS shutdown suppressed)");
             await HandleLeftoverMarkerAsync(stoppingToken);
 
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(_opt.Master.PollIntervalSeconds));
@@ -62,13 +62,13 @@ public sealed class MasterWorker(
         }
         catch (Exception ex)
         {
-            // 正常終了扱いでは SCM の再起動対象外となるため異常終了
-            logger.LogCritical(ex, "MasterWorker 異常終了");
+            // 正常終了扱いではSCMの再起動対象外となるため異常終了
+            logger.LogCritical(ex, "MasterWorker terminated abnormally");
             Environment.Exit(1);
         }
     }
 
-    /// <summary>1 周期分の処理。Q1 取得 → 付帯情報取得 → 状態判定 → ステータス反映 → 遷移時処理。</summary>
+    /// <summary>1周期分の処理。Q1取得 → 付帯情報取得 → 状態判定 → ステータス反映 → 遷移時処理。</summary>
     private async Task PollAsync(CancellationToken ct)
     {
         var now = Environment.TickCount64;
@@ -83,12 +83,12 @@ public sealed class MasterWorker(
         switch (transition)
         {
             case PowerTransition.PowerFailed:
-                logger.LogWarning("停電検知、{Seconds} 秒後にシャットダウン予定", _opt.Master.ShutdownAfterSeconds);
+                logger.LogWarning("Power failure detected, shutdown in {Seconds} s", _opt.Master.ShutdownAfterSeconds);
                 _nextRuntimeAt = 0; // 停電直後に RTS を即時取得
                 await hub.BroadcastStateAsync(PowerState.OnBattery, ct);
                 break;
             case PowerTransition.PowerRestored:
-                logger.LogWarning("復電検知、シャットダウン待機解除");
+                logger.LogWarning("Power restored, pending shutdown cancelled");
                 await hub.BroadcastStateAsync(PowerState.Online, ct);
                 break;
             case PowerTransition.ShutdownTriggered:
@@ -96,16 +96,16 @@ public sealed class MasterWorker(
                 break;
         }
 
-        // DryRun ではシャットダウン状態のまま停止しないため、復電で監視状態へ戻す
+        // DryRunではシャットダウン状態のまま停止しないため、復電で監視状態へ戻す
         if (_opt.DryRun && _monitor.State == PowerState.ShuttingDown && _q1 is { UtilityFail: false })
         {
-            logger.LogWarning("DryRun: 復電検知、監視再開");
+            logger.LogWarning("DryRun: power restored, resuming monitoring");
             _monitor.Reset();
             await hub.BroadcastStateAsync(PowerState.Online, ct);
         }
     }
 
-    /// <summary>Q1 以外の情報取得。型番等は初回成功時のみ。</summary>
+    /// <summary>Q1以外の情報取得。型番等は初回成功時のみ。</summary>
     private async Task PollExtrasAsync(long now, CancellationToken ct)
     {
         if (now >= _nextInfoAt)
@@ -132,7 +132,7 @@ public sealed class MasterWorker(
         }
     }
 
-    /// <summary>UPS 警報の取得。発生・解除をログに出力。</summary>
+    /// <summary>UPS警報の取得。発生・解除をログに出力。</summary>
     private async Task PollAlarmsAsync(CancellationToken ct)
     {
         var alarms = UpsAlarms.Parse(
@@ -142,14 +142,14 @@ public sealed class MasterWorker(
         foreach (var ((name, was), (_, active)) in _alarms.Items().Zip(alarms.Items()))
         {
             if (active == true && was != true)
-                logger.LogWarning("UPS 警報発生: {Alarm}", name);
+                logger.LogWarning("UPS alarm raised: {Alarm}", name);
             else if (active == false && was == true)
-                logger.LogInformation("UPS 警報解除: {Alarm}", name);
+                logger.LogInformation("UPS alarm cleared: {Alarm}", name);
         }
         _alarms = alarms;
     }
 
-    /// <summary>UPS 本体設定の取得。前回から変化した場合のみ警告を出力。</summary>
+    /// <summary>UPS本体設定の取得。前回から変化した場合のみ警告を出力。</summary>
     private async Task PollSettingsAsync(CancellationToken ct)
     {
         var settings = new UpsSettings(
@@ -162,7 +162,7 @@ public sealed class MasterWorker(
             return;
         _settings = settings;
         foreach (var warning in settings.Warnings())
-            logger.LogWarning("UPS 設定警告: {Warning}", warning);
+            logger.LogWarning("UPS setting warning: {Warning}", warning);
     }
 
     private async Task PollRuntimeAsync(long now, CancellationToken ct)
@@ -171,7 +171,7 @@ public sealed class MasterWorker(
         _runtime = v is null ? null : (v.Value, now);
     }
 
-    /// <returns>通信失敗・NAK 時は null</returns>
+    /// <returns>通信失敗・NAK時はnull</returns>
     private async Task<string?> QueryAsync(string command, CancellationToken ct)
     {
         try
@@ -180,7 +180,7 @@ public sealed class MasterWorker(
             _lastCommAt = Environment.TickCount64;
             if (_consecutiveCommErrors > 0)
             {
-                logger.LogInformation("UPS 通信回復 (連続失敗 {Count} 回)", _consecutiveCommErrors);
+                logger.LogInformation("UPS communication recovered (after {Count} consecutive failures)", _consecutiveCommErrors);
                 _consecutiveCommErrors = 0;
             }
             return r == "NAK" ? null : r;
@@ -188,14 +188,14 @@ public sealed class MasterWorker(
         catch (Exception ex) when (ex is TimeoutException or UpsUnavailableException)
         {
             _commErrors++;
-            // 通信断が続く間のログは 30 回に 1 回へ間引き
+            // 通信断が続く間のログは30回に1回へ間引き
             if (_consecutiveCommErrors++ % 30 == 0)
-                logger.LogWarning("UPS 通信失敗 ({Command}): {Message}", command, ex.Message);
+                logger.LogWarning("UPS communication failed ({Command}): {Message}", command, ex.Message);
             return null;
         }
     }
 
-    /// <summary>Zabbix 向けステータスへ反映。</summary>
+    /// <summary>Zabbix向けステータスへ反映。</summary>
     private void PublishStatus(long now)
     {
         var q = _q1;
@@ -225,23 +225,23 @@ public sealed class MasterWorker(
     private static int? Bit(bool? b) => b is null ? null : b.Value ? 1 : 0;
 
     /// <summary>
-    /// シャットダウンシーケンス。クライアントへ指示 → マーカー書込 → UPS へ S 送信 → 自 OS 停止。
-    /// クライアントへの指示は、マスター停止で LAN 経由の通知手段がなくなる前に完了させる。
+    /// シャットダウンシーケンス。クライアントへ指示 → マーカー書込 → UPSへS送信 → 自OS停止。
+    /// クライアントへの指示は、マスター停止でLAN経由の通知手段がなくなる前に完了させる。
     /// </summary>
     private async Task RunShutdownSequenceAsync(ShutdownReason reason, CancellationToken ct)
     {
         var dry = _opt.DryRun;
-        logger.LogCritical("シャットダウン開始 (理由: {Reason}{Dry})", reason, dry ? ", DryRun" : "");
+        logger.LogCritical("Starting shutdown (reason: {Reason}{Dry})", reason, dry ? ", DryRun" : "");
 
         var missing = await hub.ShutdownAllAsync(new ShutdownCommand(dry, reason.ToString()),
             TimeSpan.FromSeconds(_opt.Master.ClientAckTimeoutSeconds), ct);
         if (missing.Count > 0)
-            logger.LogError("シャットダウン応答なし: {Clients}", string.Join(",", missing));
+            logger.LogError("No shutdown ack from: {Clients}", string.Join(",", missing));
 
         var upsOff = UpsCommands.ShutdownWithAutoRestart(_opt.Master.UpsOffDelayMinutes);
         if (dry)
         {
-            logger.LogWarning("DryRun: {Command} 送信・OS シャットダウン省略", upsOff);
+            logger.LogWarning("DryRun: skipping {Command} and OS shutdown", upsOff);
             return;
         }
 
@@ -251,9 +251,9 @@ public sealed class MasterWorker(
         shutdown.PowerOff(PowerOffMessage);
     }
 
-    private const string PowerOffMessage = "omronupsd: 停電によるシャットダウン";
+    private const string PowerOffMessage = "omronupsd: shutdown due to power failure";
 
-    // 送信失敗時も OS は停止。UPS は電池切れで出力停止し、復電時に再出力
+    // 送信失敗時もOSは停止。UPSは電池切れで出力停止し、復電時に再出力
     private async Task SendUpsOffAsync(string command, CancellationToken ct)
     {
         for (var i = 1; i <= UpsOffRetries; i++)
@@ -263,28 +263,28 @@ public sealed class MasterWorker(
                 var r = await ups.TransactAsync(command, ct);
                 if (r == "OK")
                 {
-                    logger.LogWarning("UPS 停止コマンド送信 {Command} ({Minutes} 分後に出力停止)", command, _opt.Master.UpsOffDelayMinutes);
+                    logger.LogWarning("Sent UPS off command {Command} (output stops in {Minutes} min)", command, _opt.Master.UpsOffDelayMinutes);
                     return;
                 }
-                // S への NAK は、先行する S を受理済みで UPS がシャットダウン処理中であることを示す
+                // SへのNAKは、先行するSを受理済みでUPSがシャットダウン処理中であることを示す
                 if (r == "NAK")
                 {
-                    logger.LogWarning("UPS 停止コマンドへの NAK 応答、シャットダウン処理中と判定");
+                    logger.LogWarning("UPS off command returned NAK, assuming UPS shutdown already in progress");
                     return;
                 }
-                logger.LogError("UPS 停止コマンド応答異常 ({Try}/{Max}): {Response}", i, UpsOffRetries, r);
+                logger.LogError("Unexpected response to UPS off command ({Try}/{Max}): {Response}", i, UpsOffRetries, r);
             }
             catch (Exception ex) when (ex is TimeoutException or UpsUnavailableException)
             {
-                logger.LogError("UPS 停止コマンド送信失敗 ({Try}/{Max}): {Message}", i, UpsOffRetries, ex.Message);
+                logger.LogError("Failed to send UPS off command ({Try}/{Max}): {Message}", i, UpsOffRetries, ex.Message);
             }
             status.IncrementUpsOffFailures();
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
         }
-        logger.LogCritical("UPS 停止コマンド送信不可、OS シャットダウンのみ実行");
+        logger.LogCritical("Could not send UPS off command, proceeding with OS shutdown only");
     }
 
-    /// <summary>前回シャットダウン途中で終了した場合の復旧処理。停電継続中、または UPS 出力停止予定時刻前ならシャットダウンを再開。</summary>
+    /// <summary>前回シャットダウン途中で終了した場合の復旧処理。停電継続中、またはUPS出力停止予定時刻前ならシャットダウンを再開。</summary>
     private async Task HandleLeftoverMarkerAsync(CancellationToken ct)
     {
         if (!File.Exists(MarkerPath))
@@ -297,7 +297,7 @@ public sealed class MasterWorker(
 
         var markerText = await File.ReadAllTextAsync(MarkerPath, ct);
 
-        // 起動直後は UPS 未認識の場合があるため最大 20 秒リトライ
+        // 起動直後はUPS未認識の場合があるため最大20秒リトライ
         Q1Status? q1 = null;
         for (var i = 0; i < 10 && q1 is null; i++)
         {
@@ -306,24 +306,24 @@ public sealed class MasterWorker(
                 await Task.Delay(TimeSpan.FromSeconds(2), ct);
         }
 
-        // 通信不可で停止すると、UPS 故障時に起動のたび停止するループとなる
+        // 通信不可で停止すると、UPS故障時に起動のたび停止するループとなる
         if (q1 is null)
         {
-            logger.LogWarning("シャットダウン中断マーカー検出、UPS 通信不可のため通常監視へ移行");
+            logger.LogWarning("Interrupted shutdown marker found, UPS unreachable, resuming normal monitoring");
             File.Delete(MarkerPath);
             return;
         }
 
-        // S 受理後は復電しても UPS が予定時刻に出力を停止するため、通電中でも OS 停止を再開する。
-        // S 未送信の場合も、停止済みのクライアントは UPS の出力停止と再開を経ないと自動起動しないため S を送信する
+        // S受理後は復電してもUPSが予定時刻に出力を停止するため、通電中でもOS停止を再開する。
+        // S未送信の場合も、停止済みのクライアントはUPSの出力停止と再開を経ないと自動起動しないためSを送信する
         if (!q1.UtilityFail && !IsUpsOffPending(markerText))
         {
-            logger.LogWarning("シャットダウン中断マーカー検出、通電中のため通常監視へ移行");
+            logger.LogWarning("Interrupted shutdown marker found, utility power present, resuming normal monitoring");
             File.Delete(MarkerPath);
             return;
         }
 
-        logger.LogCritical("シャットダウン中断マーカー検出、{State}のためシャットダウン再開", q1.UtilityFail ? "停電継続中" : "UPS 出力停止予定時刻前");
+        logger.LogCritical("Interrupted shutdown marker found, resuming shutdown ({State})", q1.UtilityFail ? "power failure ongoing" : "UPS output off still pending");
         _monitor.ForceShutdown(ShutdownReason.Timer);
         await SendUpsOffAsync(UpsCommands.ShutdownWithAutoRestart(_opt.Master.UpsOffDelayMinutes), ct);
         shutdown.PowerOff(PowerOffMessage);

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 namespace OmronUpsd;
 
 /// <summary>
-/// クライアント処理本体。マスターへ常時接続し、シャットダウン指示受信時に OS を停止。
+/// クライアント処理本体。マスターへ常時接続し、シャットダウン指示受信時にOSを停止。
 /// マスター接続断時も自律的なシャットダウンは行わない。
 /// </summary>
 public sealed class ClientWorker(
@@ -22,9 +22,9 @@ public sealed class ClientWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (_opt.DryRun)
-            logger.LogWarning("DryRun モード (OS シャットダウン抑止)");
+            logger.LogWarning("DryRun mode (OS shutdown suppressed)");
 
-        // 接続断時は ReconnectDelay 間隔で再接続。ログは約 1 分に 1 回へ間引き
+        // 接続断時はReconnectDelay間隔で再接続。ログは約1分に1回へ間引き
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -38,13 +38,13 @@ public sealed class ClientWorker(
             catch (Exception ex)
             {
                 if (_consecutiveFailures++ % 12 == 0)
-                    logger.LogWarning("マスター接続断 {Host}:{Port}: {Message}", _opt.Client.MasterHost, _opt.Client.MasterPort, ex.Message);
+                    logger.LogWarning("Disconnected from master {Host}:{Port}: {Message}", _opt.Client.MasterHost, _opt.Client.MasterPort, ex.Message);
             }
             await Task.Delay(ReconnectDelay, stoppingToken).ContinueWith(_ => { }, TaskScheduler.Default);
         }
     }
 
-    /// <summary>接続から切断までの 1 セッション。切断・受信タイムアウト・認証失敗は例外で抜ける。</summary>
+    /// <summary>接続から切断までの1セッション。切断・受信タイムアウト・認証失敗は例外で抜ける。</summary>
     private async Task RunSessionAsync(CancellationToken stoppingToken)
     {
         using var tcp = new TcpClient();
@@ -57,7 +57,7 @@ public sealed class ClientWorker(
 
         await using var channel = await HandshakeAsync(tcp, stoppingToken);
         _consecutiveFailures = 0;
-        logger.LogInformation("マスター接続 {Host}:{Port} ({Name})", _opt.Client.MasterHost, _opt.Client.MasterPort, _opt.Client.ResolvedName);
+        logger.LogInformation("Connected to master {Host}:{Port} ({Name})", _opt.Client.MasterHost, _opt.Client.MasterPort, _opt.Client.ResolvedName);
         await channel.SendAsync(MessageTypes.ClientStatus, new ClientStatusNotice(_opt.DryRun, AppInfo.Version), stoppingToken);
 
         using var session = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
@@ -72,7 +72,7 @@ public sealed class ClientWorker(
                 switch (type)
                 {
                     case MessageTypes.State:
-                        logger.LogWarning("マスター状態通知: {State}", SecureChannel.Decode<StateNotice>(data).State);
+                        logger.LogWarning("State notice from master: {State}", SecureChannel.Decode<StateNotice>(data).State);
                         break;
                     case MessageTypes.Shutdown:
                         await OnShutdownAsync(channel, SecureChannel.Decode<ShutdownCommand>(data), session.Token);
@@ -110,14 +110,14 @@ public sealed class ClientWorker(
 
     private async Task OnShutdownAsync(SecureChannel channel, ShutdownCommand cmd, CancellationToken ct)
     {
-        // OS 停止開始後はネットワークが落ち ACK を返せないため先に送信
+        // OS停止開始後はネットワークが落ちACKを返せないため先に送信
         await channel.SendAsync(MessageTypes.ShutdownAck, ct);
         var dry = cmd.DryRun || _opt.DryRun;
-        logger.LogCritical("シャットダウン指示受信 (理由: {Reason}{Dry})", cmd.Reason, dry ? ", DryRun" : "");
+        logger.LogCritical("Shutdown command received (reason: {Reason}{Dry})", cmd.Reason, dry ? ", DryRun" : "");
         if (dry || _shutdownRequested)
             return;
 
         _shutdownRequested = true;
-        shutdown.PowerOff($"omronupsd: 停電によるシャットダウン ({cmd.Reason})");
+        shutdown.PowerOff($"omronupsd: shutdown due to power failure ({cmd.Reason})");
     }
 }
