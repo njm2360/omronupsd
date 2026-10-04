@@ -9,7 +9,7 @@ public sealed class ProtocolException(string message) : Exception(message);
 
 /// <summary>
 /// マスター → クライアント: ping, state, shutdown
-/// クライアント → マスター: ping, shutdown_ack
+/// クライアント → マスター: ping, shutdown_ack, client_status (接続直後)
 /// </summary>
 public static class MessageTypes
 {
@@ -17,11 +17,14 @@ public static class MessageTypes
     public const string State = "state";
     public const string Shutdown = "shutdown";
     public const string ShutdownAck = "shutdown_ack";
+    public const string ClientStatus = "client_status";
 }
 
 public sealed record ShutdownCommand(bool DryRun, string Reason);
 
 public sealed record StateNotice(string State);
+
+public sealed record ClientStatusNotice(bool DryRun, string Version);
 
 /// <summary>
 /// 改行区切り JSON。接続ごとに双方の nonce からセッション鍵を導出し、方向・連番込みの HMAC を付与。

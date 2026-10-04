@@ -852,6 +852,27 @@ zabbix_export:
           tags:
             - tag: component
               value: clients
+        - uuid: 9a112c5a1d0a4592983a6b5d6fdf81d4
+          name: 'omronupsd: DryRun clients'
+          type: DEPENDENT
+          key: omronupsd.clients.dry_run
+          value_type: CHAR
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.clients.dry_run
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: clients
+          triggers:
+            - uuid: 27bb023870ce429aa80401e58825b32a
+              expression: 'length(last(/omronupsd by Zabbix agent 2/omronupsd.clients.dry_run))>0'
+              name: 'omronupsd: DryRun enabled on clients'
+              event_name: 'omronupsd: DryRun enabled on clients ({?last(/omronupsd by Zabbix agent 2/omronupsd.clients.dry_run)})'
+              priority: WARNING
       macros:
         - macro: '{$OMRONUPSD.PORT}'
           value: '8770'

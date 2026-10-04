@@ -22,8 +22,9 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     }
 
     private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.OrdinalIgnoreCase);
-    // 切断後も最終受信時刻を保持 (Zabbix 表示用)
+    // 切断後も最終受信時刻と client_status の内容を保持 (Zabbix 表示用)
     private readonly ConcurrentDictionary<string, long> _lastSeen = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ClientStatusNotice> _clientStatus = new(StringComparer.OrdinalIgnoreCase);
     private readonly ServiceOptions _opt = options.Value;
     // 接続直後のクライアントへ送信する直近の状態と指示
     private volatile PowerState _state = PowerState.Online;
@@ -89,11 +90,20 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
             {
                 using var idle = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 idle.CancelAfter(IdleTimeout);
-                // クライアントからの受信は ping / shutdown_ack のみ
-                var (type, _) = await session.Channel.ReceiveAsync(idle.Token);
+                var (type, data) = await session.Channel.ReceiveAsync(idle.Token);
                 session.LastSeen = _lastSeen[name] = Environment.TickCount64;
-                if (type == MessageTypes.ShutdownAck)
-                    session.ShutdownAck.TrySetResult();
+                switch (type)
+                {
+                    case MessageTypes.ShutdownAck:
+                        session.ShutdownAck.TrySetResult();
+                        break;
+                    case MessageTypes.ClientStatus:
+                        var clientStatus = SecureChannel.Decode<ClientStatusNotice>(data);
+                        _clientStatus[name] = clientStatus;
+                        if (clientStatus.DryRun)
+                            logger.LogWarning("クライアント DryRun 有効 {Name}", name);
+                        break;
+                }
             }
         }
         catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
@@ -183,15 +193,23 @@ public sealed class ClientHub(IOptions<ServiceOptions> options, ILogger<ClientHu
     {
         var now = Environment.TickCount64;
         var names = _opt.Master.ExpectedClients.Concat(_lastSeen.Keys).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase);
-        var list = names.Select(n => new ClientInfo(
-            n,
-            _sessions.ContainsKey(n) ? 1 : 0,
-            _lastSeen.TryGetValue(n, out var seen) ? (now - seen) / 1000 : null)).ToArray();
+        var list = names.Select(n =>
+        {
+            var reported = _clientStatus.GetValueOrDefault(n);
+            return new ClientInfo(
+                n,
+                _sessions.ContainsKey(n) ? 1 : 0,
+                _lastSeen.TryGetValue(n, out var seen) ? (now - seen) / 1000 : null,
+                reported is null ? null : reported.DryRun ? 1 : 0,
+                reported?.Version);
+        }).ToArray();
         var missing = _opt.Master.ExpectedClients.Where(n => !_sessions.ContainsKey(n));
+        var dryRun = _clientStatus.Where(p => p.Value.DryRun).Select(p => p.Key).Order(StringComparer.OrdinalIgnoreCase);
         return new ClientsSnapshot(
             _opt.Master.ExpectedClients.Length,
             _opt.Master.ExpectedClients.Count(_sessions.ContainsKey),
             string.Join(",", missing),
+            string.Join(",", dryRun),
             list);
     }
 }

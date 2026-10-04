@@ -92,7 +92,7 @@ PowerAttendant のサービスとは併用できません。事前に停止し�
 
 1. `DryRun: true` のまま全台にインストールし、マスターで `omronupsd.exe status` を実行して全クライアントが `connected: 1` であることを確認
 2. UPS の電源プラグを抜き、`ShutdownAfterSeconds` 経過後に各 PC のログに `シャットダウン指示受信 (理由: Timer, DryRun)` が出力されることを確認
-3. 全台で `DryRun: false` に変更し、サービスを再起動
+3. 全台で `DryRun: false` に変更してサービスを再起動し、マスターで `omronupsd.exe status` を実行して `clients.dry_run` が空であることを確認
 
 ## Zabbix 連携
 
@@ -106,6 +106,6 @@ Zabbix 7.0 用テンプレート `zabbix/omronupsd_template.yaml` をインポ�
 - UPS 故障、DC バス電圧異常、過温度
 - 過負荷、過負荷継続、出力過電圧、出力電圧低下、出力短絡
 - クライアント未接続
-- DryRun 有効
+- DryRun 有効（マスター、クライアント）
 - 高負荷、高温（しきい値はマクロで変更可）
 - UPS 本体設定の警告条件（「UPS 本体設定」の節を参照）

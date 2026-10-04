@@ -59,9 +59,9 @@ public sealed record UpsSettingsSnapshot(
     int? RestartBatteryLevel,
     int? BatteryLowLevel);
 
-public sealed record ClientsSnapshot(int Expected, int Connected, string Missing, ClientInfo[] List);
+public sealed record ClientsSnapshot(int Expected, int Connected, string Missing, string DryRun, ClientInfo[] List);
 
-public sealed record ClientInfo(string Name, int Connected, long? SecondsSinceHeartbeat);
+public sealed record ClientInfo(string Name, int Connected, long? SecondsSinceHeartbeat, int? DryRun, string? Version);
 
 /// <summary>MasterWorker からの更新と StatusServer からの参照を仲介。</summary>
 public sealed class MasterStatus

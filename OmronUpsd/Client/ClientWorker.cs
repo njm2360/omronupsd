@@ -58,6 +58,7 @@ public sealed class ClientWorker(
         await using var channel = await HandshakeAsync(tcp, stoppingToken);
         _consecutiveFailures = 0;
         logger.LogInformation("マスター接続 {Host}:{Port} ({Name})", _opt.Client.MasterHost, _opt.Client.MasterPort, _opt.Client.ResolvedName);
+        await channel.SendAsync(MessageTypes.ClientStatus, new ClientStatusNotice(_opt.DryRun, AppInfo.Version), stoppingToken);
 
         using var session = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
         var pinger = PingLoopAsync(channel, session);
