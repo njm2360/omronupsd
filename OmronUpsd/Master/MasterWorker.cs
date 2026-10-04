@@ -31,6 +31,7 @@ public sealed class MasterWorker(
     private Q1Status? _q1;
     private long? _lastCommAt;
     private long _commErrors;
+    private long _consecutiveCommErrors;
     private string? _model, _serial, _firmware;
     private int? _batteryPercent;
     private (int Value, long At)? _runtime;
@@ -134,12 +135,18 @@ public sealed class MasterWorker(
         {
             var r = await ups.TransactAsync(command, ct);
             _lastCommAt = Environment.TickCount64;
+            if (_consecutiveCommErrors > 0)
+            {
+                logger.LogInformation("UPS 通信回復 (連続失敗 {Count} 回)", _consecutiveCommErrors);
+                _consecutiveCommErrors = 0;
+            }
             return r == "NAK" ? null : r;
         }
         catch (Exception ex) when (ex is TimeoutException or UpsUnavailableException)
         {
+            _commErrors++;
             // 通信断が続く間のログは 30 回に 1 回へ間引き
-            if (_commErrors++ % 30 == 0)
+            if (_consecutiveCommErrors++ % 30 == 0)
                 logger.LogWarning("UPS 通信失敗 ({Command}): {Message}", command, ex.Message);
             return null;
         }
