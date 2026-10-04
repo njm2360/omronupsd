@@ -72,7 +72,7 @@ iscc installer\omronupsd.iss
 | --- | --- | --- |
 | `Role` | `Master` | `Master` / `Client` |
 | `SharedKey` | なし | マスター・クライアント間の認証鍵。全台共通、16 文字以上 |
-| `DryRun` | `true` | UPS 停止と OS シャットダウンを実行せずログ出力のみ。マスターの設定はクライアントにも適用 |
+| `DryRun` | `false` | UPS 停止と OS シャットダウンを実行せずログ出力のみ。クライアントはマスターとクライアントのいずれかが `true` なら OS シャットダウンしない |
 | `Master.ListenAddress` / `Master.ListenPort` | `0.0.0.0` / `8771` | クライアント接続の待受 |
 | `Master.StatusPort` | `8770` | ステータス API のポート。127.0.0.1 のみ |
 | `Master.ShutdownAfterSeconds` | `60` | 停電判定からシャットダウン開始まで（秒、0〜36000）。この値と `UpsOffDelayMinutes` の合計が、負荷に対する UPS のバックアップ時間内に収まる値とする |
@@ -104,7 +104,7 @@ iscc installer\omronupsd.iss
 - サービス登録（LocalSystem、自動起動、異常終了時は自動再起動）と開始
 - ファイアウォール規則の追加（マスターのみ）
 
-インストール直後は `DryRun` が有効です。更新時は既存の `appsettings.json` を維持します。設定変更は `appsettings.json` を編集し、サービスを再起動します。アンインストール時、`%ProgramData%\omronupsd` のログは削除しません。
+更新時は既存の `appsettings.json` を維持します。設定変更は `appsettings.json` を編集し、サービスを再起動します。アンインストール時、`%ProgramData%\omronupsd` のログは削除しません。
 
 状態表示は管理者権限で `omronupsd.exe status` を実行します（マスターのみ）。
 

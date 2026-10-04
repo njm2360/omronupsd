@@ -14,7 +14,7 @@ public sealed class ServiceOptions
     // マスター・クライアント間の認証鍵。全台共通
     public string SharedKey { get; set; } = "";
     // マスターの値はクライアントにも伝搬。いずれかが true なら OS 停止を抑止
-    public bool DryRun { get; set; } = true;
+    public bool DryRun { get; set; }
     public MasterOptions Master { get; set; } = new();
     public ClientOptions Client { get; set; } = new();
 }
