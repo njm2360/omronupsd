@@ -47,7 +47,7 @@ dotnet publish OmronUpsd -c Release -o publish
 | `DryRun` | `true` | UPS 停止と OS シャットダウンを実行せずログ出力のみ。マスターの設定はクライアントにも適用 |
 | `Master.ListenAddress` / `Master.ListenPort` | `0.0.0.0` / `8771` | クライアント接続の待受。ファイアウォールの受信許可が必要 |
 | `Master.StatusPort` | `8770` | ステータス API のポート。127.0.0.1 のみ |
-| `Master.ShutdownAfterSeconds` | `300` | 停電判定からシャットダウン開始まで（秒、0〜36000） |
+| `Master.ShutdownAfterSeconds` | `60` | 停電判定からシャットダウン開始まで（秒、0〜36000）。この値と `UpsOffDelayMinutes` の合計が、負荷に対する UPS のバックアップ時間内に収まる値とする |
 | `Master.UpsOffDelayMinutes` | `3` | 出力停止指示から UPS 出力停止まで（分、1〜30）。全台のシャットダウン完了に必要な時間以上とする |
 | `Master.MinRuntimeMinutes` | `6` | 推定バックアップ時間がこれを下回ると即シャットダウン（分）。`UpsOffDelayMinutes` より大きい値とする |
 | `Master.ClientAckTimeoutSeconds` | `15` | シャットダウン指示に対するクライアント応答の待ち時間（秒） |

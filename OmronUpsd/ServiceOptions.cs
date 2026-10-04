@@ -26,7 +26,7 @@ public sealed class MasterOptions
     // ステータス API (127.0.0.1 固定)
     public int StatusPort { get; set; } = 8770;
     // 停電検知からシャットダウン開始まで
-    public int ShutdownAfterSeconds { get; set; } = 300;
+    public int ShutdownAfterSeconds { get; set; } = 60;
     // S コマンド送信から UPS 出力停止まで。全台の OS 停止完了に足る値とする
     public int UpsOffDelayMinutes { get; set; } = 3;
     // 停電中、RTS (推定バックアップ時間) がこれを下回れば即シャットダウン
