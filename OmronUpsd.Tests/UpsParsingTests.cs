@@ -87,6 +87,28 @@ public class UpsParsingTests
         Assert.Equal(expected, UpsSettings.ParseAutoRestart(flags));
 
     [Fact]
+    public void Alarms_BitPositions()
+    {
+        Assert.Equal(new UpsAlarms(true, true, true, true, true, true, true, true, true, true, true, true),
+            UpsAlarms.Parse("10000101", "00001001", "11111100 00100000"));
+        Assert.Equal(new UpsAlarms(false, false, false, false, false, false, false, false, false, false, false, false),
+            UpsAlarms.Parse("01111010", "11110110", "00000011 11011111"));
+    }
+
+    [Fact]
+    public void Alarms_UnknownFlags_Null() =>
+        Assert.Equal(new UpsAlarms(null, null, null, false, false, null, null, null, null, null, null, null),
+            UpsAlarms.Parse(null, "00000000", null));
+
+    [Theory]
+    [InlineData("00000000 00000000", "00000000 00000000")]
+    [InlineData("00000000 00100000", "00000000 00100000")]
+    [InlineData("00000000 0010000", null)]
+    [InlineData("00000000 0010000x", null)]
+    public void ParseFlags_V3Length(string response, string? expected) =>
+        Assert.Equal(expected, UpsCommands.ParseFlags(response, UpsCommands.FlagsV3Length));
+
+    [Fact]
     public void Settings_FactoryDefaults_NoWarnings() =>
         Assert.Empty(new UpsSettings(true, 0, 10, 0, 30).Warnings());
 

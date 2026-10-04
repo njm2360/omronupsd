@@ -570,6 +570,246 @@ zabbix_export:
           tags:
             - tag: component
               value: ups
+        - uuid: d9253bcf493741c38f064e019a67d6d1
+          name: 'UPS: Battery disconnected flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.battery_disconnected
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.battery_disconnected
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 1a3d93c8ccfd411db24bb56614d4d943
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.battery_disconnected)=1'
+              name: 'UPS: Battery disconnected'
+              priority: HIGH
+        - uuid: 89923523cff044a5b1e2266b29baefcb
+          name: 'UPS: Fault flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.ups_fault
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.ups_fault
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: f559270de2c44565b7e7f6659db362d1
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.ups_fault)=1'
+              name: 'UPS: Fault detected'
+              priority: HIGH
+        - uuid: ace8766486cb483d92f0a9bbb245e6fe
+          name: 'UPS: Battery replacement flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.battery_replace
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.battery_replace
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 954039a92161449486754f39b8bbd7a1
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.battery_replace)=1'
+              name: 'UPS: Battery replacement required'
+              priority: WARNING
+        - uuid: 1e2449b4f23e4918b18d3ff857ff484f
+          name: 'UPS: Overload flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.overload
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.overload
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 7a33aee2f5a94ca69261a25723a2435a
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.overload)=1'
+              name: 'UPS: Overload'
+              priority: AVERAGE
+        - uuid: fdbbb668f771469eb02e5f495fecf24f
+          name: 'UPS: Output overvoltage flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.output_over_voltage
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.output_over_voltage
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 339612ab39d842678c13f92c843f4997
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.output_over_voltage)=1'
+              name: 'UPS: Output overvoltage'
+              priority: AVERAGE
+        - uuid: f869ef88f98542c28a09e77313a44366
+          name: 'UPS: DC bus voltage abnormal flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.dc_bus_abnormal
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.dc_bus_abnormal
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 9daad1cbce3e49ccb63c4d50a3b2d645
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.dc_bus_abnormal)=1'
+              name: 'UPS: DC bus voltage abnormal'
+              priority: HIGH
+        - uuid: 1b931d713c35482bbe45ab4f3c288153
+          name: 'UPS: Overload timeout flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.overload_timeout
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.overload_timeout
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: eedb1496bb8c46659d8b07b2ed43066c
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.overload_timeout)=1'
+              name: 'UPS: Overload timeout'
+              priority: HIGH
+        - uuid: b8a4f51eba2a4d0ba446e2db00f3a503
+          name: 'UPS: Output short circuit flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.output_short
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.output_short
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: b3ab2c66c94b4e5f8b2d27e3704f1e96
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.output_short)=1'
+              name: 'UPS: Output short circuit'
+              priority: HIGH
+        - uuid: 9f0f10473ee84f4c913d9ddd2c6e0ae6
+          name: 'UPS: Battery overcharge flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.battery_over_charge
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.battery_over_charge
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 5c1fe3fa6ea641b4b398340c107e35ce
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.battery_over_charge)=1'
+              name: 'UPS: Battery overcharge'
+              priority: AVERAGE
+        - uuid: 272f2c7bfd344529b292dd9bebc9a44d
+          name: 'UPS: Battery undercharge flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.battery_under_charge
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.battery_under_charge
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: c138ff0f1d51430cbfd3b669dac9d346
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.battery_under_charge)=1'
+              name: 'UPS: Battery undercharge'
+              priority: WARNING
+        - uuid: f08a0271f89e49e1b50255a707664673
+          name: 'UPS: Over temperature flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.over_temperature
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.over_temperature
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 73e79662adf142bdb7f9d5cde22e355e
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.over_temperature)=1'
+              name: 'UPS: Over temperature'
+              priority: HIGH
+        - uuid: 5cce7af3077545bba826252ff551add6
+          name: 'UPS: Output undervoltage flag'
+          type: DEPENDENT
+          key: omronupsd.ups.alarms.output_under_voltage
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.alarms.output_under_voltage
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 6427ada5554c4de3848ab6d2c5c7ee27
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.alarms.output_under_voltage)=1'
+              name: 'UPS: Output undervoltage'
+              priority: AVERAGE
         - uuid: d96f76ddfc874ae59e8195030164cfa5
           name: 'omronupsd: Expected clients'
           type: DEPENDENT

@@ -13,7 +13,10 @@ public static partial class UpsCommands
     public const string Model = "Si ?";
     public const string Serial = "PSNR";
     public const string Firmware = "FWV";
+    public const string FlagsV = "V";
     public const string FlagsV2 = "V2";
+    public const string FlagsV3 = "V3";
+    public const int FlagsV3Length = 17;
     public const string MaxBackupTime = "But ?";
     public const string OutputStartDelay = "Rbd ?";
     public const string RestartBatteryLevel = "Rbv ?";
@@ -33,9 +36,9 @@ public static partial class UpsCommands
     public static int? ParseInt(string? response) =>
         int.TryParse(response, NumberStyles.None, CultureInfo.InvariantCulture, out var v) ? v : null;
 
-    /// <returns>V / V2 応答の先頭 8 桁 (各桁 0/1)。形式不正時は null</returns>
-    public static string? ParseFlags(string? response) =>
-        response is { Length: >= 8 } && response.AsSpan(0, 8).IndexOfAnyExcept('0', '1') < 0 ? response[..8] : null;
+    /// <returns>V / V2 / V3 応答の先頭 length 文字 (各桁 0/1、V3 は区切りの空白を含む)。形式不正時は null</returns>
+    public static string? ParseFlags(string? response, int length = 8) =>
+        response?.Length >= length && response.AsSpan(0, length).IndexOfAnyExcept('0', '1', ' ') < 0 ? response[..length] : null;
 
     public static (int Watts, int VoltAmperes)? ParseTotalLoad(string? response)
     {

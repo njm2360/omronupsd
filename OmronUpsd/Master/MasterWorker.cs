@@ -16,6 +16,7 @@ public sealed class MasterWorker(
     // 型番・残量・消費電力・本体設定・RTS (通電中) の取得間隔
     private static readonly TimeSpan InfoInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RuntimeIntervalOnBattery = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan AlarmsInterval = TimeSpan.FromSeconds(5);
     // 停電判定に用いる RTS の有効期間。超過分は不明扱い
     private static readonly TimeSpan RuntimeMaxAge = TimeSpan.FromSeconds(30);
 
@@ -37,8 +38,10 @@ public sealed class MasterWorker(
     private (int Value, long At)? _runtime;
     private (int W, int Va)? _power;
     private UpsSettings? _settings;
+    private UpsAlarms _alarms = UpsAlarms.Unknown;
     private long _nextInfoAt;
     private long _nextRuntimeAt;
+    private long _nextAlarmsAt;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -122,6 +125,28 @@ public sealed class MasterWorker(
             _nextRuntimeAt = now + (long)RuntimeIntervalOnBattery.TotalMilliseconds;
             await PollRuntimeAsync(now, ct);
         }
+        if (now >= _nextAlarmsAt)
+        {
+            _nextAlarmsAt = now + (long)AlarmsInterval.TotalMilliseconds;
+            await PollAlarmsAsync(ct);
+        }
+    }
+
+    /// <summary>UPS 警報の取得。発生・解除をログに出力。</summary>
+    private async Task PollAlarmsAsync(CancellationToken ct)
+    {
+        var alarms = UpsAlarms.Parse(
+            UpsCommands.ParseFlags(await QueryAsync(UpsCommands.FlagsV, ct)),
+            UpsCommands.ParseFlags(await QueryAsync(UpsCommands.FlagsV2, ct)),
+            UpsCommands.ParseFlags(await QueryAsync(UpsCommands.FlagsV3, ct), UpsCommands.FlagsV3Length));
+        foreach (var ((name, was), (_, active)) in _alarms.Items().Zip(alarms.Items()))
+        {
+            if (active == true && was != true)
+                logger.LogWarning("UPS 警報発生: {Alarm}", name);
+            else if (active == false && was == true)
+                logger.LogInformation("UPS 警報解除: {Alarm}", name);
+        }
+        _alarms = alarms;
     }
 
     /// <summary>UPS 本体設定の取得。前回から変化した場合のみ警告を出力。</summary>
@@ -184,7 +209,11 @@ public sealed class MasterWorker(
             _batteryPercent, _runtime?.Value, _power?.W, _power?.Va,
             _settings is { } st
                 ? new UpsSettingsSnapshot(Bit(st.AutoRestart), st.MaxBackupTime, st.OutputStartDelay, st.RestartBatteryLevel, st.BatteryLowLevel)
-                : null));
+                : null,
+            new UpsAlarmsSnapshot(Bit(_alarms.BatteryDisconnected), Bit(_alarms.UpsFault), Bit(_alarms.BatteryReplace),
+                Bit(_alarms.Overload), Bit(_alarms.OutputOverVoltage), Bit(_alarms.DcBusAbnormal), Bit(_alarms.OverloadTimeout),
+                Bit(_alarms.OutputShort), Bit(_alarms.BatteryOverCharge), Bit(_alarms.BatteryUnderCharge),
+                Bit(_alarms.OverTemperature), Bit(_alarms.OutputUnderVoltage))));
 
         long? onBattery = _monitor.OnBatterySinceMs is { } since ? (now - since) / 1000 : null;
         long? until = _monitor.State == PowerState.OnBattery && onBattery is { } s
