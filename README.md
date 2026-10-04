@@ -56,6 +56,18 @@ dotnet publish OmronUpsd -c Release -o publish
 | `Client.MasterHost` / `Client.MasterPort` | なし / `8771` | マスターの接続先 |
 | `Client.Name` | コンピューター名 | クライアント名。`ExpectedClients` と一致させる |
 
+## UPS 本体設定
+
+マスターは UPS 本体の以下の設定を 60 秒ごとに取得し、ステータス API の `ups.settings` に出力します。警告条件に該当する場合はログに警告を出力します。
+
+| 設定 | キー | 警告条件 |
+| --- | --- | --- |
+| 自動再起動 | `auto_restart` | 無効 |
+| 最大バックアップ時間 | `max_backup_time` | 0 以外 |
+| 出力開始遅延 | `output_start_delay` | 0 |
+| 再起動レベル（出力再開に必要な電池残量 %） | `restart_battery_level` | なし |
+| 電池低下検出レベル | `battery_low_level` | なし |
+
 ## インストール
 
 管理者権限で実行します。
@@ -94,3 +106,4 @@ Zabbix 7.0 用テンプレート `zabbix/omronupsd_template.yaml` をインポ�
 - クライアント未接続
 - DryRun 有効
 - 高負荷、高温（しきい値はマクロで変更可）
+- UPS 本体設定の警告条件（「UPS 本体設定」の節を参照）

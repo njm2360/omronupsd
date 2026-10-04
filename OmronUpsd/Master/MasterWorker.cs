@@ -13,7 +13,7 @@ public sealed class MasterWorker(
     ILogger<MasterWorker> logger) : BackgroundService
 {
     private const int UpsOffRetries = 3;
-    // 型番・残量・消費電力・RTS (通電中) の取得間隔
+    // 型番・残量・消費電力・本体設定・RTS (通電中) の取得間隔
     private static readonly TimeSpan InfoInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RuntimeIntervalOnBattery = TimeSpan.FromSeconds(10);
     // 停電判定に用いる RTS の有効期間。超過分は不明扱い
@@ -36,6 +36,7 @@ public sealed class MasterWorker(
     private int? _batteryPercent;
     private (int Value, long At)? _runtime;
     private (int W, int Va)? _power;
+    private UpsSettings? _settings;
     private long _nextInfoAt;
     private long _nextRuntimeAt;
 
@@ -112,6 +113,7 @@ public sealed class MasterWorker(
             _firmware ??= await QueryAsync(UpsCommands.Firmware, ct);
             _batteryPercent = UpsCommands.ParseInt(await QueryAsync(UpsCommands.BatteryLevel, ct));
             _power = UpsCommands.ParseTotalLoad(await QueryAsync(UpsCommands.LoadConsumption, ct));
+            await PollSettingsAsync(ct);
             if (_monitor.State == PowerState.Online)
                 await PollRuntimeAsync(now, ct);
         }
@@ -120,6 +122,22 @@ public sealed class MasterWorker(
             _nextRuntimeAt = now + (long)RuntimeIntervalOnBattery.TotalMilliseconds;
             await PollRuntimeAsync(now, ct);
         }
+    }
+
+    /// <summary>UPS 本体設定の取得。前回から変化した場合のみ警告を出力。</summary>
+    private async Task PollSettingsAsync(CancellationToken ct)
+    {
+        var settings = new UpsSettings(
+            UpsSettings.ParseAutoRestart(UpsCommands.ParseFlags(await QueryAsync(UpsCommands.FlagsV2, ct))),
+            UpsCommands.ParseInt(await QueryAsync(UpsCommands.MaxBackupTime, ct)),
+            UpsCommands.ParseInt(await QueryAsync(UpsCommands.OutputStartDelay, ct)),
+            UpsCommands.ParseInt(await QueryAsync(UpsCommands.RestartBatteryLevel, ct)),
+            UpsCommands.ParseInt(await QueryAsync(UpsCommands.BatteryLowLevel, ct)));
+        if (settings == _settings)
+            return;
+        _settings = settings;
+        foreach (var warning in settings.Warnings())
+            logger.LogWarning("UPS 設定警告: {Warning}", warning);
     }
 
     private async Task PollRuntimeAsync(long now, CancellationToken ct)
@@ -163,7 +181,10 @@ public sealed class MasterWorker(
             _model, _serial, _firmware,
             q?.InputVoltage, q?.OutputVoltage, q?.LoadPercent, q?.Frequency, q?.BatteryVoltage, q?.Temperature,
             Bit(q?.UtilityFail), Bit(q?.BatteryLow), Bit(q?.BatteryFault), Bit(q?.TestAbnormal), Bit(q?.Testing),
-            _batteryPercent, _runtime?.Value, _power?.W, _power?.Va));
+            _batteryPercent, _runtime?.Value, _power?.W, _power?.Va,
+            _settings is { } st
+                ? new UpsSettingsSnapshot(Bit(st.AutoRestart), st.MaxBackupTime, st.OutputStartDelay, st.RestartBatteryLevel, st.BatteryLowLevel)
+                : null));
 
         long? onBattery = _monitor.OnBatterySinceMs is { } since ? (now - since) / 1000 : null;
         long? until = _monitor.State == PowerState.OnBattery && onBattery is { } s

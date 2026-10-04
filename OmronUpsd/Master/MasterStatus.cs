@@ -34,7 +34,15 @@ public sealed record UpsSnapshot(
     int? BatteryPercent,
     int? RuntimeMinutes,
     int? PowerW,
-    int? PowerVa);
+    int? PowerVa,
+    UpsSettingsSnapshot? Settings);
+
+public sealed record UpsSettingsSnapshot(
+    int? AutoRestart,
+    int? MaxBackupTime,
+    int? OutputStartDelay,
+    int? RestartBatteryLevel,
+    int? BatteryLowLevel);
 
 public sealed record ClientsSnapshot(int Expected, int Connected, string Missing, ClientInfo[] List);
 
@@ -44,7 +52,7 @@ public sealed record ClientInfo(string Name, int Connected, long? SecondsSinceHe
 public sealed class MasterStatus
 {
     private readonly object _lock = new();
-    private UpsSnapshot _ups = new(0, null, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    private UpsSnapshot _ups = new(0, null, 0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     private (PowerState State, ShutdownReason Reason, long? OnBatterySeconds, long? UntilShutdown) _power = (PowerState.Online, ShutdownReason.None, null, null);
     private int _upsOffFailures;
 

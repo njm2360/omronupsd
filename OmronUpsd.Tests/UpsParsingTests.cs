@@ -69,4 +69,32 @@ public class UpsParsingTests
     [InlineData(null, null)]
     [InlineData("-1", null)]
     public void ParseInt(string? response, int? expected) => Assert.Equal(expected, UpsCommands.ParseInt(response));
+
+    [Theory]
+    [InlineData("00010000", "00010000")]
+    [InlineData("000100001", "00010000")]
+    [InlineData("0001000", null)]
+    [InlineData("0001000x", null)]
+    [InlineData("NAK", null)]
+    [InlineData(null, null)]
+    public void ParseFlags(string? response, string? expected) => Assert.Equal(expected, UpsCommands.ParseFlags(response));
+
+    [Theory]
+    [InlineData("00000000", true)]
+    [InlineData("10000000", false)]
+    [InlineData(null, null)]
+    public void AutoRestart_ZeroMeansEnabled(string? flags, bool? expected) =>
+        Assert.Equal(expected, UpsSettings.ParseAutoRestart(flags));
+
+    [Fact]
+    public void Settings_FactoryDefaults_NoWarnings() =>
+        Assert.Empty(new UpsSettings(true, 0, 10, 0, 30).Warnings());
+
+    [Fact]
+    public void Settings_UnknownValues_NoWarnings() =>
+        Assert.Empty(new UpsSettings(null, null, null, null, null).Warnings());
+
+    [Fact]
+    public void Settings_UnsafeValues_Warn() =>
+        Assert.Equal(3, new UpsSettings(false, 60, 0, 0, 30).Warnings().Count());
 }

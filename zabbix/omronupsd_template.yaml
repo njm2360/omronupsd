@@ -479,6 +479,97 @@ zabbix_export:
           tags:
             - tag: component
               value: ups
+        - uuid: 9c07f7e29bae44e080696047f0585be3
+          name: 'UPS: Auto restart setting'
+          type: DEPENDENT
+          key: omronupsd.ups.settings.auto_restart
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.settings.auto_restart
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: eed41893696e4ba886cbe84b71ae30f2
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.settings.auto_restart)=0'
+              name: 'UPS: Auto restart disabled'
+              priority: WARNING
+        - uuid: 08d7460642aa4ef185437eb5ac523317
+          name: 'UPS: Max backup time setting'
+          type: DEPENDENT
+          key: omronupsd.ups.settings.max_backup_time
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.settings.max_backup_time
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: e3d43f575f6e490f846e6c60fa3c62cd
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.settings.max_backup_time)>0'
+              name: 'UPS: Max backup time is set'
+              priority: WARNING
+        - uuid: bba90549081a423b9e0578e52e9dee9a
+          name: 'UPS: Output start delay setting'
+          type: DEPENDENT
+          key: omronupsd.ups.settings.output_start_delay
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.settings.output_start_delay
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+          triggers:
+            - uuid: 5679641f119b4707a2b1c8e0f7ffce39
+              expression: 'last(/omronupsd by Zabbix agent 2/omronupsd.ups.settings.output_start_delay)=0'
+              name: 'UPS: Output start delay is 0'
+              priority: WARNING
+        - uuid: 2c0de6b146a246d9a9ad32e8aed1f30b
+          name: 'UPS: Restart battery level setting'
+          type: DEPENDENT
+          key: omronupsd.ups.settings.restart_battery_level
+          value_type: UNSIGNED
+          units: '%'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.settings.restart_battery_level
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
+        - uuid: 8b9bdfbf4b624953b5c1cecdab730af2
+          name: 'UPS: Battery low level setting'
+          type: DEPENDENT
+          key: omronupsd.ups.settings.battery_low_level
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.ups.settings.battery_low_level
+              error_handler: DISCARD_VALUE
+          master_item:
+            key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
+          tags:
+            - tag: component
+              value: ups
         - uuid: d96f76ddfc874ae59e8195030164cfa5
           name: 'omronupsd: Expected clients'
           type: DEPENDENT

@@ -13,6 +13,11 @@ public static partial class UpsCommands
     public const string Model = "Si ?";
     public const string Serial = "PSNR";
     public const string Firmware = "FWV";
+    public const string FlagsV2 = "V2";
+    public const string MaxBackupTime = "But ?";
+    public const string OutputStartDelay = "Rbd ?";
+    public const string RestartBatteryLevel = "Rbv ?";
+    public const string BatteryLowLevel = "Bld ?";
 
     // S は 0～30 分を受け付けるが、0 は "S.2" (1 分未満) となりマスターの OS 停止が間に合わない
     public const int MinOffDelayMinutes = 1;
@@ -27,6 +32,10 @@ public static partial class UpsCommands
 
     public static int? ParseInt(string? response) =>
         int.TryParse(response, NumberStyles.None, CultureInfo.InvariantCulture, out var v) ? v : null;
+
+    /// <returns>V / V2 応答の先頭 8 桁 (各桁 0/1)。形式不正時は null</returns>
+    public static string? ParseFlags(string? response) =>
+        response is { Length: >= 8 } && response.AsSpan(0, 8).IndexOfAnyExcept('0', '1') < 0 ? response[..8] : null;
 
     public static (int Watts, int VoltAmperes)? ParseTotalLoad(string? response)
     {
