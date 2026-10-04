@@ -207,6 +207,12 @@ public sealed class MasterWorker(
                     logger.LogWarning("UPS 停止コマンド送信 {Command} ({Minutes} 分後に出力停止)", command, _opt.Master.UpsOffDelayMinutes);
                     return;
                 }
+                // S への NAK は、先行する S を受理済みで UPS がシャットダウン処理中であることを示す
+                if (r == "NAK")
+                {
+                    logger.LogWarning("UPS 停止コマンドへの NAK 応答、シャットダウン処理中と判定");
+                    return;
+                }
                 logger.LogError("UPS 停止コマンド応答異常 ({Try}/{Max}): {Response}", i, UpsOffRetries, r);
             }
             catch (Exception ex) when (ex is TimeoutException or UpsUnavailableException)

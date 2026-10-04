@@ -14,7 +14,7 @@ public static partial class UpsCommands
     public const string Serial = "PSNR";
     public const string Firmware = "FWV";
 
-    // S は 0～30 分を受け付けるが、0 は "S.2" (12 秒) となりマスターの OS 停止が間に合わない
+    // S は 0～30 分を受け付けるが、0 は "S.2" (1 分未満) となりマスターの OS 停止が間に合わない
     public const int MinOffDelayMinutes = 1;
     public const int MaxOffDelayMinutes = 30;
 
