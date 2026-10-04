@@ -19,8 +19,10 @@ public sealed class MasterWorker(
     // 停電判定に用いる RTS の有効期間。超過分は不明扱い
     private static readonly TimeSpan RuntimeMaxAge = TimeSpan.FromSeconds(30);
 
-    // S 送信後のサービス異常終了・再起動時、停電継続中なら OS 停止を再開するためのマーカー
+    // シャットダウンシーケンス中のサービス異常終了・再起動時に OS 停止を再開するためのマーカー。内容は書込時刻 (ISO 8601)
     internal static readonly string MarkerPath = Path.Combine(AppInfo.DataDirectory, "shutdown.marker");
+    // マーカー書込から S 送信完了までの最大所要時間 (SendUpsOffAsync のリトライを含む)
+    private static readonly TimeSpan UpsOffSendMargin = TimeSpan.FromSeconds(15);
 
     private readonly ServiceOptions _opt = options.Value;
     private readonly PowerMonitor _monitor = new(options.Value.Master.ShutdownAfterSeconds, options.Value.Master.MinRuntimeMinutes);
@@ -225,7 +227,7 @@ public sealed class MasterWorker(
         logger.LogCritical("UPS 停止コマンド送信不可、OS シャットダウンのみ実行");
     }
 
-    /// <summary>前回シャットダウン途中で終了した場合の復旧処理。停電継続中ならシャットダウンを再開。</summary>
+    /// <summary>前回シャットダウン途中で終了した場合の復旧処理。停電継続中、または UPS 出力停止予定時刻前ならシャットダウンを再開。</summary>
     private async Task HandleLeftoverMarkerAsync(CancellationToken ct)
     {
         if (!File.Exists(MarkerPath))
@@ -235,6 +237,8 @@ public sealed class MasterWorker(
             File.Delete(MarkerPath);
             return;
         }
+
+        var markerText = await File.ReadAllTextAsync(MarkerPath, ct);
 
         // 起動直後は UPS 未認識の場合があるため最大 20 秒リトライ
         Q1Status? q1 = null;
@@ -246,16 +250,29 @@ public sealed class MasterWorker(
         }
 
         // 通信不可で停止すると、UPS 故障時に起動のたび停止するループとなる
-        if (q1 is not { UtilityFail: true })
+        if (q1 is null)
         {
-            logger.LogWarning("シャットダウン中断マーカー検出、{State}のため通常監視へ移行", q1 is null ? "UPS 通信不可" : "通電中");
+            logger.LogWarning("シャットダウン中断マーカー検出、UPS 通信不可のため通常監視へ移行");
             File.Delete(MarkerPath);
             return;
         }
 
-        logger.LogCritical("シャットダウン中断マーカー検出、停電継続中のためシャットダウン再開");
+        // S 受理後は復電しても UPS が予定時刻に出力を停止するため、通電中でも OS 停止を再開する。
+        // S 未送信の場合も、停止済みのクライアントは UPS の出力停止と再開を経ないと自動起動しないため S を送信する
+        if (!q1.UtilityFail && !IsUpsOffPending(markerText))
+        {
+            logger.LogWarning("シャットダウン中断マーカー検出、通電中のため通常監視へ移行");
+            File.Delete(MarkerPath);
+            return;
+        }
+
+        logger.LogCritical("シャットダウン中断マーカー検出、{State}のためシャットダウン再開", q1.UtilityFail ? "停電継続中" : "UPS 出力停止予定時刻前");
         _monitor.ForceShutdown(ShutdownReason.Timer);
         await SendUpsOffAsync(UpsCommands.ShutdownWithAutoRestart(_opt.Master.UpsOffDelayMinutes), ct);
         shutdown.PowerOff(PowerOffMessage);
     }
+
+    private bool IsUpsOffPending(string markerText) =>
+        DateTimeOffset.TryParse(markerText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var writtenAt)
+        && DateTimeOffset.Now - writtenAt < TimeSpan.FromMinutes(_opt.Master.UpsOffDelayMinutes) + UpsOffSendMargin;
 }
