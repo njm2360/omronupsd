@@ -884,7 +884,7 @@ zabbix_export:
         - macro: '{$OMRONUPSD.TEMP.MAX}'
           value: '45'
         - macro: '{$OMRONUPSD.CLIENT.GRACE}'
-          value: 2m
+          value: 10m
       valuemaps:
         - uuid: 065a9ad1813441f29c925ea79508ffbc
           name: 'omronupsd state'
