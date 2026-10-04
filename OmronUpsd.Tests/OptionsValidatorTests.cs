@@ -46,4 +46,28 @@ public class OptionsValidatorTests
         o.Client.MasterHost = "192.168.1.10";
         Assert.True(IsValid(o));
     }
+
+    [Theory]
+    [InlineData("0.0.0.0", 8771, true)]
+    [InlineData("192.168.1.1", 8771, true)]
+    [InlineData("localhost", 8771, false)]
+    [InlineData("0.0.0.0", 0, false)]
+    [InlineData("0.0.0.0", 65536, false)]
+    public void Master_ListenEndpoint(string address, int port, bool valid)
+    {
+        var o = Valid();
+        o.Master.ListenAddress = address;
+        o.Master.ListenPort = port;
+        Assert.Equal(valid, IsValid(o));
+    }
+
+    [Fact]
+    public void Client_RejectsInvalidPort()
+    {
+        var o = Valid();
+        o.Role = Role.Client;
+        o.Client.MasterHost = "192.168.1.10";
+        o.Client.MasterPort = 0;
+        Assert.False(IsValid(o));
+    }
 }

@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.Options;
 
 namespace OmronUpsd;
@@ -68,14 +69,26 @@ public sealed class ServiceOptionsValidator : IValidateOptions<ServiceOptions>
                 errors.Add("Master.ClientAckTimeoutSeconds: 1～120");
             if (m.PollIntervalSeconds is < 1 or > 10)
                 errors.Add("Master.PollIntervalSeconds: 1～10");
+            if (!IPAddress.TryParse(m.ListenAddress, out _))
+                errors.Add("Master.ListenAddress: IP アドレス形式で指定");
+            ValidatePort(errors, "Master.ListenPort", m.ListenPort);
+            ValidatePort(errors, "Master.StatusPort", m.StatusPort);
             if (m.ListenPort == m.StatusPort)
                 errors.Add("Master.ListenPort と StatusPort が重複");
         }
-        else if (string.IsNullOrWhiteSpace(o.Client.MasterHost))
+        else
         {
-            errors.Add("Client.MasterHost 未設定");
+            if (string.IsNullOrWhiteSpace(o.Client.MasterHost))
+                errors.Add("Client.MasterHost 未設定");
+            ValidatePort(errors, "Client.MasterPort", o.Client.MasterPort);
         }
 
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
+    }
+
+    private static void ValidatePort(List<string> errors, string name, int port)
+    {
+        if (port is < 1 or > IPEndPoint.MaxPort)
+            errors.Add($"{name}: 1～{IPEndPoint.MaxPort}");
     }
 }
