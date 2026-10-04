@@ -24,6 +24,33 @@ OMRON BW55T 用の停電監視・連動シャットダウンサービス（Windo
    3. 自機をシャットダウン
 4. 復電すると UPS が出力を再開。各 PC の BIOS で AC 復帰時電源 ON を有効にしておくと自動起動
 
+```mermaid
+sequenceDiagram
+    participant UPS
+    participant M as マスター
+    participant C as クライアント
+
+    loop PollIntervalSeconds ごと
+        M->>UPS: Q1
+        UPS-->>M: 状態
+    end
+    Note over M: 停電フラグ 4 回連続で停電と判定
+    M->>C: state (on_battery)
+    alt シャットダウン開始前に復電
+        M->>C: state (online)
+    else ShutdownAfterSeconds 経過、バッテリ低下、推定バックアップ時間不足のいずれか
+        M->>C: shutdown
+        C-->>M: shutdown_ack
+        Note over C: OS シャットダウン
+        Note over M: 全台の ACK 受信または ClientAckTimeoutSeconds 経過まで待機
+        M->>UPS: Snn (nn = UpsOffDelayMinutes)
+        UPS-->>M: OK
+        Note over M: OS シャットダウン
+        Note over UPS: UpsOffDelayMinutes 分後に出力停止
+        Note over UPS,C: 復電後に出力再開、各 PC は AC 復帰時電源 ON で起動
+    end
+```
+
 クライアントはマスターとの通信が途絶しても単独ではシャットダウンしません。シャットダウン開始後にマスターへ接続したクライアントには、接続時にシャットダウンを指示します。
 
 ## ビルド
