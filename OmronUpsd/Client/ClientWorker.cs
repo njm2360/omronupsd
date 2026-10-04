@@ -17,6 +17,7 @@ public sealed class ClientWorker(
 
     private readonly ServiceOptions _opt = options.Value;
     private bool _shutdownRequested;
+    private int _consecutiveFailures;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -24,13 +25,11 @@ public sealed class ClientWorker(
             logger.LogWarning("DryRun モード (OS シャットダウン抑止)");
 
         // 接続断時は ReconnectDelay 間隔で再接続。ログは約 1 分に 1 回へ間引き
-        var failures = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await RunSessionAsync(stoppingToken);
-                failures = 0;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -38,7 +37,7 @@ public sealed class ClientWorker(
             }
             catch (Exception ex)
             {
-                if (failures++ % 12 == 0)
+                if (_consecutiveFailures++ % 12 == 0)
                     logger.LogWarning("マスター接続断 {Host}:{Port}: {Message}", _opt.Client.MasterHost, _opt.Client.MasterPort, ex.Message);
             }
             await Task.Delay(ReconnectDelay, stoppingToken).ContinueWith(_ => { }, TaskScheduler.Default);
@@ -57,6 +56,7 @@ public sealed class ClientWorker(
         tcp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 
         await using var channel = await HandshakeAsync(tcp, stoppingToken);
+        _consecutiveFailures = 0;
         logger.LogInformation("マスター接続 {Host}:{Port} ({Name})", _opt.Client.MasterHost, _opt.Client.MasterPort, _opt.Client.ResolvedName);
 
         using var session = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
