@@ -55,13 +55,14 @@ sequenceDiagram
 
 ## ビルド
 
-.NET 10 SDK が必要です。
+.NET 10 SDK と Inno Setup 6 が必要です。
 
 ```powershell
 dotnet publish OmronUpsd -c Release -o publish
+iscc installer\omronupsd.iss
 ```
 
-`publish` 配下の `omronupsd.exe` と `appsettings.json` を各 PC の同一フォルダに配置します。self-contained の単一 exe のため .NET ランタイムのインストールは不要です。
+`dist\omronupsd-<バージョン>-setup.exe` を生成します。
 
 ## 設定
 
@@ -72,7 +73,7 @@ dotnet publish OmronUpsd -c Release -o publish
 | `Role` | `Master` | `Master` / `Client` |
 | `SharedKey` | なし | マスター・クライアント間の認証鍵。全台共通、16 文字以上 |
 | `DryRun` | `true` | UPS 停止と OS シャットダウンを実行せずログ出力のみ。マスターの設定はクライアントにも適用 |
-| `Master.ListenAddress` / `Master.ListenPort` | `0.0.0.0` / `8771` | クライアント接続の待受。ファイアウォールの受信許可が必要 |
+| `Master.ListenAddress` / `Master.ListenPort` | `0.0.0.0` / `8771` | クライアント接続の待受 |
 | `Master.StatusPort` | `8770` | ステータス API のポート。127.0.0.1 のみ |
 | `Master.ShutdownAfterSeconds` | `60` | 停電判定からシャットダウン開始まで（秒、0〜36000）。この値と `UpsOffDelayMinutes` の合計が、負荷に対する UPS のバックアップ時間内に収まる値とする |
 | `Master.UpsOffDelayMinutes` | `3` | 出力停止指示から UPS 出力停止まで（分、1〜30）。全台のシャットダウン完了に必要な時間以上とする |
@@ -97,14 +98,15 @@ dotnet publish OmronUpsd -c Release -o publish
 
 ## インストール
 
-管理者権限で実行します。
+インストーラーを管理者権限で実行し、動作モード、共有鍵、接続先等を指定します。インストーラーは以下を実行します。
 
-```powershell
-omronupsd.exe install
-sc.exe start omronupsd
-```
+- `appsettings.json` への設定値の書込と、SYSTEM・Administrators 以外の読取禁止
+- サービス登録（LocalSystem、自動起動、異常終了時は自動再起動）と開始
+- ファイアウォール規則の追加（マスターのみ）
 
-LocalSystem・自動起動、異常終了時は自動再起動で登録されます。削除は `omronupsd.exe uninstall`、状態表示は `omronupsd.exe status`（マスターのみ）。
+インストール直後は `DryRun` が有効です。更新時は既存の `appsettings.json` を維持します。設定変更は `appsettings.json` を編集し、サービスを再起動します。アンインストール時、`%ProgramData%\omronupsd` のログは削除しません。
+
+状態表示は管理者権限で `omronupsd.exe status` を実行します（マスターのみ）。
 
 PowerAttendant のサービスとは併用できません。事前に停止してください。
 
@@ -114,12 +116,6 @@ PowerAttendant のサービスとは併用できません。事前に停止し�
 | --- | --- |
 | `%ProgramData%\omronupsd\logs` | 日別ファイル、30 日保持 |
 | イベントログ（Application、ソース `omronupsd`） | Warning 以上 |
-
-## 導入手順
-
-1. `DryRun: true` のまま全台にインストールし、マスターで `omronupsd.exe status` を実行して全クライアントが `connected: 1` であることを確認
-2. UPS の電源プラグを抜き、`ShutdownAfterSeconds` 経過後に各 PC のログに `シャットダウン指示受信 (理由: Timer, DryRun)` が出力されることを確認
-3. 全台で `DryRun: false` に変更してサービスを再起動し、マスターで `omronupsd.exe status` を実行して `clients.dry_run` が空であることを確認
 
 ## Zabbix 連携
 
