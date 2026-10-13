@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve version from tag
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+            throw "Unexpected tag format: $env:TAG (expected vMAJOR.MINOR.PATCH)"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test OmronUpsd.slnx --configuration Release
+
+      - name: Publish
+        run: >
+          dotnet publish OmronUpsd\OmronUpsd.csproj
+          --configuration Release
+          -p:DebugType=none
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:IncludeSourceRevisionInInformationalVersion=false
+          --output publish\
+
+      - name: Build installer
+        run: iscc installer\omronupsd.iss
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $ghArgs = @(
+            $env:TAG
+            "dist\omronupsd-${{ steps.version.outputs.version }}-setup.exe"
+            '--title', $env:TAG
+            '--generate-notes'
+          )
+          if ($env:TAG -match '-') { $ghArgs += '--prerelease' }
+          gh release create @ghArgs
