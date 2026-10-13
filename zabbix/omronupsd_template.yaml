@@ -12,6 +12,7 @@ zabbix_export:
       items:
         - uuid: 379e5b5db56f4ce6a0f90240d65ee1eb
           name: 'omronupsd: Status raw'
+          type: ZABBIX_ACTIVE
           key: 'web.page.get[127.0.0.1,/status,{$OMRONUPSD.PORT}]'
           delay: 30s
           history: '0'
